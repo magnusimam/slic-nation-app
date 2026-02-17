@@ -37,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="font-sans antialiased bg-background text-foreground pb-20 md:pb-0">
+      <body className="font-sans antialiased bg-background text-foreground pb-20 md:pb-0" suppressHydrationWarning>
         {children}
         <MobileNavBar />
         <Analytics />
