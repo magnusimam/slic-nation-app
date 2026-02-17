@@ -1,18 +1,25 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Facebook, Twitter, Instagram, Mail } from 'lucide-react';
 
 export function Footer() {
   return (
     <footer className="bg-card border-t border-border mt-12 lg:mt-16">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 md:py-12 pb-24 md:pb-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold">S</span>
+              <div className="w-10 h-10 rounded-lg overflow-hidden">
+                <Image
+                  src="/slicnation%20logo.jpg"
+                  alt="SLIC Nations"
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="font-bold text-lg">SLIC Nations</span>
             </div>

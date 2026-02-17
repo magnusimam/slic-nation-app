@@ -12,6 +12,7 @@
   --popover-foreground: oklch(0.98 0 0);
   --primary: oklch(0.75 0.22 70.08);
   --primary-foreground: oklch(0.08 0 0);
+  --primary-rgb: 234, 179, 8; /* Gold/amber RGB for gradients */
   --secondary: oklch(0.35 0.28 260);
   --secondary-foreground: oklch(0.98 0 0);
   --muted: oklch(0.3 0 0);
@@ -48,6 +49,7 @@
   --popover-foreground: oklch(0.98 0 0);
   --primary: oklch(0.75 0.22 70.08);
   --primary-foreground: oklch(0.08 0 0);
+  --primary-rgb: 234, 179, 8; /* Gold/amber RGB for gradients */
   --secondary: oklch(0.35 0.28 260);
   --secondary-foreground: oklch(0.98 0 0);
   --muted: oklch(0.3 0 0);
@@ -179,4 +181,273 @@
   .animate-pulse-subtle {
     animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  /* Netflix-style Progress Animation */
+  @keyframes progress {
+    from {
+      width: 0%;
+    }
+    to {
+      width: 100%;
+    }
+  }
+
+  .animate-progress {
+    animation: progress linear forwards;
+  }
+
+  /* Card Hover Z-index Fix */
+  .group:hover {
+    z-index: 10;
+  }
+}
+
+/* Safe Area Insets for Mobile Devices with Notch/Home Indicator */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Mobile optimization utilities */
+@layer utilities {
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent text selection on tap */
+  .select-none-mobile {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Floating reaction animation */
+@keyframes float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-50px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) scale(0.8);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 3s ease-out forwards;
+}
+
+/* Chat message fade-in animation */
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* Slide up animation for category preview */
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
+
+/* Staggered fade-in animation for grid items */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+/* Stagger delays */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+
+/* Section header slide in */
+@keyframes slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.4s ease-out forwards;
+}
+
+/* Scale bounce for interactive elements */
+@keyframes scale-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.animate-scale-bounce {
+  animation: scale-bounce 0.3s ease-in-out;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Pulse glow for badges */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 10px 2px currentColor; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Neon Glow Effects for Login/Signup Pages
+   ============================================ */
+
+/* Neon text glow - strong */
+.neon-text-glow {
+  text-shadow:
+    0 0 15px var(--primary),
+    0 0 30px var(--primary),
+    0 0 45px var(--primary);
+}
+
+/* Neon text glow - subtle */
+.neon-text-glow-subtle {
+  text-shadow: 0 0 10px var(--primary);
+}
+
+/* Neon icon glow */
+.neon-icon-glow {
+  filter: drop-shadow(0 0 5px var(--primary));
+}
+
+/* Neon box glow */
+.neon-box-glow {
+  box-shadow:
+    0 0 15px var(--primary),
+    0 0 30px var(--primary);
+}
+
+/* Neon border glow */
+.neon-border-glow {
+  box-shadow: 0 0 10px var(--primary);
+}
+
+/* Flicker animation for neon effect */
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    text-shadow:
+      0 0 15px var(--primary),
+      0 0 30px var(--primary),
+      0 0 45px var(--primary);
+    opacity: 1;
+  }
+  20%, 24%, 55% {
+    text-shadow: none;
+    opacity: 0.8;
+  }
+}
+
+.animate-neon-flicker {
+  animation: neon-flicker 3s linear infinite;
+}
+
+/* Glow pulse animation */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 15px var(--primary),
+      0 0 30px var(--primary);
+  }
+  50% {
+    box-shadow:
+      0 0 25px var(--primary),
+      0 0 50px var(--primary),
+      0 0 75px var(--primary);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Light beam sweep animation */
+@keyframes light-sweep {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(45deg);
+  }
+}
+
+.animate-light-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: light-sweep 3s ease-in-out infinite;
 }

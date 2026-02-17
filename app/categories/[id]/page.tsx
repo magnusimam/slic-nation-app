@@ -38,7 +38,7 @@ export default function CategoryDetailPage() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="max-w-7xl mx-auto px-4 lg:px-8 py-16 text-center">
+        <main className="max-w-7xl mx-auto px-4 lg:px-8 pt-24 lg:pt-28 pb-16 text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Category not found</h1>
           <Link href="/categories">
             <Button>Back to Categories</Button>
@@ -54,7 +54,7 @@ export default function CategoryDetailPage() {
       <Header />
 
       {/* Hero Section with Category Background */}
-      <div className={`bg-gradient-to-r ${category.color} relative overflow-hidden`}>
+      <div className={`bg-gradient-to-r ${category.color} relative overflow-hidden pt-16 sm:pt-20`}>
         <img
           src={category.thumbnail}
           alt={category.name}

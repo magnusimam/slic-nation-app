@@ -21,6 +21,9 @@ export interface Book {
   category: string;
   pages: number;
   year: number;
+  downloads?: number;
+  isNew?: boolean;
+  isFeatured?: boolean;
 }
 
 export interface Service {
@@ -64,4 +67,22 @@ export interface Category {
   description: string;
   videoCount: number;
   color: string;
+  isNew?: boolean;
+  isTrending?: boolean;
+  lastUpdated?: string;
+  previewVideos?: string[]; // thumbnail URLs for preview
+  totalDuration?: number; // total hours of content
+  recentlyAddedCount?: number; // videos added in last 7 days
+}
+
+export interface ContinueWatchingItem {
+  id: string;
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  categoryId: string;
+  categoryName: string;
+  progress: number; // 0-100 percentage
+  duration: number; // minutes
+  lastWatched: string;
 }

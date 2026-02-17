@@ -57,23 +57,23 @@ export default function LibraryPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-24 md:pb-8">
         {/* Page Header */}
-        <div className="space-y-6 mb-12">
+        <div className="space-y-4 md:space-y-6 mb-8 md:mb-12">
           <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">Video Library</h1>
-            <p className="text-foreground/70">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 md:mb-2">Video Library</h1>
+            <p className="text-sm md:text-base text-foreground/70">
               Explore our collection of sermons, teachings, and spiritual messages.
             </p>
           </div>
 
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/50" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-foreground/50" />
             <Input
               type="text"
-              placeholder="Search sermons, speakers, or keywords..."
-              className="pl-10 py-6 text-base"
+              placeholder="Search sermons, speakers..."
+              className="pl-9 md:pl-10 py-5 md:py-6 text-sm md:text-base"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -81,19 +81,19 @@ export default function LibraryPage() {
         </div>
 
         {/* Filters Section */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 text-foreground hover:text-primary transition-colors mb-4 md:hidden"
+            className="flex items-center gap-2 text-foreground hover:text-primary transition-colors mb-3 md:mb-4 md:hidden text-sm"
           >
             <Filter className="w-4 h-4" />
             {showFilters ? 'Hide Filters' : 'Show Filters'}
           </button>
 
-          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 ${!showFilters && 'hidden md:grid'}`}>
+          <div className={`grid grid-cols-2 gap-3 md:gap-4 mb-6 md:mb-8 ${!showFilters && 'hidden md:grid'}`}>
             {/* Category Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Category</label>
+            <div className="space-y-1.5 md:space-y-2">
+              <label className="text-xs md:text-sm font-semibold text-foreground">Category</label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger>
                   <SelectValue />
@@ -109,8 +109,8 @@ export default function LibraryPage() {
             </div>
 
             {/* Speaker Filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Speaker</label>
+            <div className="space-y-1.5 md:space-y-2">
+              <label className="text-xs md:text-sm font-semibold text-foreground">Speaker</label>
               <Select value={selectedSpeaker} onValueChange={setSelectedSpeaker}>
                 <SelectTrigger>
                   <SelectValue />
@@ -153,13 +153,13 @@ export default function LibraryPage() {
         </div>
 
         {/* Results Count */}
-        <p className="text-sm text-foreground/70 mb-6">
+        <p className="text-xs md:text-sm text-foreground/70 mb-4 md:mb-6">
           {filteredVideos.length} result{filteredVideos.length !== 1 ? 's' : ''} found
         </p>
 
         {/* Video Grid */}
         {filteredVideos.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
             {filteredVideos.map((video) => (
               <VideoCard
                 key={video.id}
@@ -170,10 +170,11 @@ export default function LibraryPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <p className="text-foreground/70 text-lg mb-4">No videos found matching your criteria.</p>
+          <div className="text-center py-12 md:py-16">
+            <p className="text-sm md:text-base lg:text-lg text-foreground/70 mb-4">No videos found matching your criteria.</p>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 setSearchTerm('');
                 setSelectedCategory('All');

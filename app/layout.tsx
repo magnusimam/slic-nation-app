@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { MobileNavBar } from '@/components/layout/MobileNavBar'
 import './globals.css'
 
@@ -10,7 +9,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'SLIC Nations - Streaming Ministry Platform',
   description: 'Experience powerful sermons, live services, digital books, and giving at SLIC Nations',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
@@ -40,7 +38,6 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground pb-20 md:pb-0" suppressHydrationWarning>
         {children}
         <MobileNavBar />
-        <Analytics />
       </body>
     </html>
   )

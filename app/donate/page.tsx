@@ -59,27 +59,27 @@ export default function DonatePage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-5xl mx-auto px-4 lg:px-8 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-24 md:pb-8">
         {/* Page Header */}
-        <div className="text-center space-y-4 mb-12">
-          <h1 className="text-4xl font-bold text-foreground">Support Our Ministry</h1>
-          <p className="text-foreground/70 text-lg max-w-2xl mx-auto">
+        <div className="text-center space-y-3 md:space-y-4 mb-8 md:mb-12">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Support Our Ministry</h1>
+          <p className="text-sm md:text-base lg:text-lg text-foreground/70 max-w-2xl mx-auto px-2">
             Your generous giving enables us to reach more people with the Gospel, provide resources, and make a lasting impact in God's Kingdom.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 mb-8 md:mb-12">
           {/* Donation Form */}
           <div className="lg:col-span-2">
             {!isSubmitted ? (
-              <div className="bg-card rounded-lg border border-border p-8">
+              <div className="bg-card rounded-lg border border-border p-4 sm:p-6 md:p-8">
                 {/* Tabs */}
-                <div className="flex gap-4 mb-8 border-b border-border -mx-8 px-8">
+                <div className="flex gap-1 sm:gap-4 mb-6 md:mb-8 border-b border-border -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 overflow-x-auto">
                   {(['tithe', 'offering', 'partnership'] as DonationType[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`py-4 px-2 font-semibold transition-colors border-b-2 ${
+                      className={`py-3 md:py-4 px-2 sm:px-3 text-sm md:text-base font-semibold transition-colors border-b-2 whitespace-nowrap ${
                         activeTab === tab
                           ? 'text-primary border-primary'
                           : 'text-foreground/70 border-transparent hover:text-foreground'
@@ -91,18 +91,18 @@ export default function DonatePage() {
                 </div>
 
                 {/* Tab Content */}
-                <div className="space-y-6">
+                <div className="space-y-5 md:space-y-6">
                   <div>
-                    <p className="text-foreground/70 mb-2 text-sm">{currentTab.subtitle}</p>
-                    <p className="text-foreground/80">{currentTab.description}</p>
+                    <p className="text-foreground/70 mb-1 md:mb-2 text-xs md:text-sm">{currentTab.subtitle}</p>
+                    <p className="text-sm md:text-base text-foreground/80">{currentTab.description}</p>
                   </div>
 
                   {/* Amount Selection */}
-                  <div className="space-y-4">
-                    <label className="block text-sm font-semibold text-foreground">
+                  <div className="space-y-3 md:space-y-4">
+                    <label className="block text-xs md:text-sm font-semibold text-foreground">
                       Select or Enter Amount (USD)
                     </label>
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    <div className="grid grid-cols-3 gap-2">
                       {predefinedAmounts.map((amt) => (
                         <button
                           key={amt}
@@ -110,7 +110,7 @@ export default function DonatePage() {
                             setAmount(amt);
                             setCustomAmount('');
                           }}
-                          className={`py-3 px-2 rounded-lg font-semibold transition-colors ${
+                          className={`py-2.5 md:py-3 px-2 rounded-lg text-sm md:text-base font-semibold transition-colors active:scale-95 ${
                             amount === amt && !customAmount
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted hover:bg-muted/80 text-foreground'
@@ -137,15 +137,15 @@ export default function DonatePage() {
                   </div>
 
                   {/* Donor Information */}
-                  <div className="space-y-4 pt-6 border-t border-border">
-                    <label className="block text-sm font-semibold text-foreground">
+                  <div className="space-y-3 md:space-y-4 pt-5 md:pt-6 border-t border-border">
+                    <label className="block text-xs md:text-sm font-semibold text-foreground">
                       Your Information
                     </label>
 
                     <Input
                       type="text"
                       placeholder="Full Name"
-                      className="py-6"
+                      className="py-5 md:py-6 text-sm md:text-base"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                     />
