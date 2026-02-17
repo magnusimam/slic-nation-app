@@ -10,7 +10,7 @@ export function Header() {
 
   const navigationLinks = [
     { href: '/', label: 'Home' },
-    { href: '/library', label: 'Library' },
+    { href: '/categories', label: 'Categories' },
     { href: '/books', label: 'Books' },
     { href: '/live', label: 'Live' },
     { href: '/donate', label: 'Donate' },

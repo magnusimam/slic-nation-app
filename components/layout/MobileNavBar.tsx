@@ -9,7 +9,7 @@ export function MobileNavBar() {
 
   const navItems = [
     { href: '/', icon: Home, label: 'Home' },
-    { href: '/library', icon: Play, label: 'Library' },
+    { href: '/categories', icon: Play, label: 'Categories' },
     { href: '/books', icon: BookOpen, label: 'Books' },
     { href: '/live', icon: Radio, label: 'Live' },
     { href: '/donate', icon: Heart, label: 'Donate' },

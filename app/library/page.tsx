@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { VideoCard } from '@/components/VideoCard';
-import { SERMON_VIDEOS, CATEGORIES, SPEAKERS } from '@/lib/mockData';
+import { SERMON_VIDEOS, CATEGORY_OPTIONS, SPEAKERS } from '@/lib/mockData';
 import { Video } from '@/lib/types';
 import { Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -99,7 +99,7 @@ export default function LibraryPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((category) => (
+                  {CATEGORY_OPTIONS.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>

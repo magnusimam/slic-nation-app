@@ -1,4 +1,4 @@
-import { Video, Book, Service, ContentRow } from './types';
+import { Video, Book, Service, ContentRow, Category } from './types';
 
 export const FEATURED_VIDEOS: Video[] = [
   {
@@ -211,6 +211,57 @@ export const CONTENT_ROWS: ContentRow[] = [
   },
 ];
 
-export const CATEGORIES = ['All', 'Teaching', 'Prayer', 'Prophecy', 'Worship', 'Devotional'];
+export const CATEGORY_OPTIONS = ['All', 'Teaching', 'Prayer', 'Prophecy', 'Worship', 'Devotional'];
 
 export const SPEAKERS = ['Pastor John', 'Dr. Sarah', 'Pastor Michael', 'All Speakers'];
+
+export const CATEGORIES: Category[] = [
+  {
+    id: 'teaching',
+    name: 'Teaching',
+    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f70259b51?w=500&h=300&fit=crop',
+    description: 'Deep biblical teachings and spiritual lessons',
+    videoCount: 24,
+    color: 'from-blue-600 to-blue-800',
+  },
+  {
+    id: 'prayer',
+    name: 'Prayer',
+    thumbnail: 'https://images.unsplash.com/photo-1511379938547-c1f69b13d835?w=500&h=300&fit=crop',
+    description: 'Prayer sessions and guidance for spiritual connection',
+    videoCount: 18,
+    color: 'from-purple-600 to-purple-800',
+  },
+  {
+    id: 'prophecy',
+    name: 'Prophecy',
+    thumbnail: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=500&h=300&fit=crop',
+    description: 'Prophetic words and revelations from Scripture',
+    videoCount: 12,
+    color: 'from-amber-600 to-amber-800',
+  },
+  {
+    id: 'worship',
+    name: 'Worship',
+    thumbnail: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&h=300&fit=crop',
+    description: 'Worship sessions and spiritual music performances',
+    videoCount: 15,
+    color: 'from-pink-600 to-pink-800',
+  },
+  {
+    id: 'devotional',
+    name: 'Devotional',
+    thumbnail: 'https://images.unsplash.com/photo-1507842217343-583f7270bfba?w=500&h=300&fit=crop',
+    description: 'Daily devotionals for spiritual growth',
+    videoCount: 30,
+    color: 'from-green-600 to-green-800',
+  },
+  {
+    id: 'conferences',
+    name: 'Conferences',
+    thumbnail: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=300&fit=crop',
+    description: 'Conference messages and special events',
+    videoCount: 8,
+    color: 'from-red-600 to-red-800',
+  },
+];

@@ -56,3 +56,12 @@ export interface ContentRow {
   title: string;
   items: Video[];
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  thumbnail: string;
+  description: string;
+  videoCount: number;
+  color: string;
+}
