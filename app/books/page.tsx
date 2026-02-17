@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { AnimatedBooksSlider } from '@/components/AnimatedBooksSlider';
 import { BookCard } from '@/components/BookCard';
 import { BOOKS } from '@/lib/mockData';
 import { Book } from '@/lib/types';
@@ -59,13 +60,16 @@ export default function BooksPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+      {/* Animated Books Slider */}
+      <AnimatedBooksSlider books={BOOKS.slice(0, 6)} />
+
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-12">
         {/* Page Header */}
         <div className="space-y-6 mb-12">
           <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">Digital Books</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Browse All Books</h1>
             <p className="text-foreground/70">
-              Explore our collection of ministry books and spiritual resources. Available for reading online or download.
+              Explore our complete collection of ministry resources and spiritual teachings.
             </p>
           </div>
 
