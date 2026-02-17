@@ -27,8 +27,11 @@ export function VideoCard({ video, onPlay, onSave }: VideoCardProps) {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Parse date string and format consistently without timezone issues
+    const [year, month, day] = dateString.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = parseInt(month) - 1;
+    return `${months[monthIndex]} ${parseInt(day)}`;
   };
 
   return (
