@@ -178,6 +178,15 @@ export const BOOKS: Book[] = [
 
 export const LIVE_SERVICES: Service[] = [
   {
+    id: 'live0',
+    title: 'Wednesday Midweek Service',
+    date: '2026-02-18',
+    time: '06:00 PM',
+    isLive: false,
+    speaker: 'Apst Emmanuel Etim',
+    thumbnail: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=450&fit=crop',
+  },
+  {
     id: 'live1',
     title: 'Sunday Morning Service',
     date: '2026-02-22',
@@ -188,9 +197,9 @@ export const LIVE_SERVICES: Service[] = [
   },
   {
     id: 'live2',
-    title: 'Wednesday Bible Study',
+    title: 'Wednesday Midweek Service',
     date: '2026-02-25',
-    time: '07:00 PM',
+    time: '06:00 PM',
     isLive: false,
     speaker: 'Apst Emmanuel Etim',
     thumbnail: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&h=450&fit=crop',
