@@ -86,3 +86,16 @@ export interface ContinueWatchingItem {
   duration: number; // minutes
   lastWatched: string;
 }
+
+// Live Streaming Types
+export type StreamPlatform = 'youtube' | 'facebook' | 'none';
+
+export interface StreamConfig {
+  platform: StreamPlatform;
+  youtubeVideoId?: string;      // YouTube video/stream ID (from URL: youtube.com/watch?v=THIS_PART)
+  youtubeLiveChannelId?: string; // YouTube channel ID for auto-detecting live streams
+  facebookVideoUrl?: string;     // Full Facebook video/live URL
+  isLive: boolean;               // Manual override for live status
+  title?: string;                // Stream title override
+  fallbackThumbnail?: string;    // Thumbnail when offline
+}

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
+import { streamConfig } from '@/lib/streamConfig';
 import {
   Dialog,
   DialogContent,
@@ -17,31 +19,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-  Play,
-  Pause,
   Calendar,
   Clock,
-  Users,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize,
-  Settings,
   Share2,
   Bell,
   BellRing,
-  Heart,
   Copy,
   Check,
-  X,
-  PictureInPicture,
   Hand,
   Send,
   Facebook,
@@ -53,14 +37,10 @@ import {
   PlayCircle,
   Eye,
   FileText,
-  Captions,
   Radio,
   Keyboard,
   ChevronDown,
   ChevronUp,
-  Headphones,
-  MoreVertical,
-  Gauge,
 } from 'lucide-react';
 
 // Mock chat messages
@@ -104,16 +84,7 @@ export default function LivePage() {
   const currentService = LIVE_SERVICES[0];
   const upcomingServices = LIVE_SERVICES.slice(1);
   
-  // Video player state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(80);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [quality, setQuality] = useState('1080p');
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const playerRef = useRef<HTMLDivElement>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+
 
   // Countdown state
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -131,20 +102,12 @@ export default function LivePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
-  // Live reactions
-  const [reactions, setReactions] = useState<{id: number; emoji: string; x: number}[]>([]);
 
-  // Priority 3 states
+
+  // UI states
   const [showNotes, setShowNotes] = useState(true);
   const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
-  const [captionsEnabled, setCaptionsEnabled] = useState(false);
-  const [audioOnlyMode, setAudioOnlyMode] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
-  const [viewerCount, setViewerCount] = useState(12450);
-  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
-  const [showMobileReactions, setShowMobileReactions] = useState(false);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState(MOCK_CHAT_MESSAGES);
@@ -233,43 +196,15 @@ END:VCALENDAR`;
   // Keyboard shortcuts handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in input fields
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
       switch (e.key.toLowerCase()) {
-        case ' ':
-        case 'k':
-          e.preventDefault();
-          setIsPlaying(prev => !prev);
-          break;
-        case 'f':
-          e.preventDefault();
-          toggleFullscreen();
-          break;
-        case 'm':
-          e.preventDefault();
-          setIsMuted(prev => !prev);
-          break;
-        case 'c':
-          e.preventDefault();
-          setCaptionsEnabled(prev => !prev);
-          break;
-        case 'arrowup':
-          e.preventDefault();
-          setVolume(prev => Math.min(100, prev + 10));
-          break;
-        case 'arrowdown':
-          e.preventDefault();
-          setVolume(prev => Math.max(0, prev - 10));
-          break;
         case '?':
           e.preventDefault();
           setShowKeyboardShortcuts(prev => !prev);
           break;
         case 'escape':
           setShowKeyboardShortcuts(false);
-          setShowQualityMenu(false);
-          setShowSpeedMenu(false);
           break;
       }
     };
@@ -277,20 +212,6 @@ END:VCALENDAR`;
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  // Simulate fluctuating viewer count when live
-  useEffect(() => {
-    if (!currentService.isLive) return;
-    
-    const interval = setInterval(() => {
-      setViewerCount(prev => {
-        const change = Math.floor(Math.random() * 50) - 20; // -20 to +30
-        return Math.max(10000, prev + change);
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [currentService.isLive]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -319,41 +240,6 @@ END:VCALENDAR`;
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [currentService]);
-
-  // Hide controls after inactivity
-  useEffect(() => {
-    const handleMouseMove = () => {
-      setShowControls(true);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-      controlsTimeoutRef.current = setTimeout(() => {
-        if (isPlaying) setShowControls(false);
-      }, 3000);
-    };
-
-    const player = playerRef.current;
-    player?.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      player?.removeEventListener('mousemove', handleMouseMove);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    };
-  }, [isPlaying]);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      playerRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  const togglePiP = async () => {
-    // PiP would work with actual video element
-    console.log('Picture-in-Picture requested');
-  };
 
   const handlePrayerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,15 +276,6 @@ END:VCALENDAR`;
     };
     
     window.open(urls[platform], '_blank', 'width=600,height=400');
-  };
-
-  const addReaction = (emoji: string) => {
-    const id = Date.now();
-    const x = Math.random() * 80 + 10; // Random position 10-90%
-    setReactions(prev => [...prev, { id, emoji, x }]);
-    setTimeout(() => {
-      setReactions(prev => prev.filter(r => r.id !== id));
-    }, 3000);
   };
 
   return (
@@ -553,431 +430,56 @@ END:VCALENDAR`;
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
           {/* Main Player */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Video Player with Controls */}
-            <div 
-              ref={playerRef}
-              className="relative rounded-xl overflow-hidden bg-black aspect-video group"
-              onMouseEnter={() => setShowControls(true)}
-            >
-              {/* Video/Thumbnail */}
-              <div
-                className="w-full h-full cursor-pointer"
-                style={{
-                  backgroundImage: audioOnlyMode ? 'none' : `url('${currentService.thumbnail}')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundColor: audioOnlyMode ? '#0a0a0a' : undefined,
-                }}
-                onClick={() => setIsPlaying(!isPlaying)}
-              >
-                {/* Audio Only Mode Overlay */}
-                {audioOnlyMode && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black via-gray-900 to-black">
-                    <div className="relative">
-                      <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-primary/20 flex items-center justify-center mb-3 sm:mb-4">
-                        <Headphones className="w-8 h-8 sm:w-12 sm:h-12 text-primary" />
-                      </div>
-                      {isPlaying && (
-                        <div className="absolute inset-0 w-16 h-16 sm:w-24 sm:h-24 rounded-full border-2 border-primary animate-ping opacity-30" />
-                      )}
-                    </div>
-                    <p className="text-white/70 text-xs sm:text-sm">Audio Only Mode</p>
-                    <p className="text-white/50 text-[10px] sm:text-xs mt-1">Lower bandwidth, audio focused</p>
-                  </div>
-                )}
+            {/* Live Stream Player */}
+            <LiveStreamPlayer
+              config={streamConfig}
+              serviceThumbnail={currentService.thumbnail}
+            />
 
-                {/* Overlay when paused */}
-                {!isPlaying && !audioOnlyMode && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Button
-                      size="lg"
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center shadow-2xl"
-                    >
-                      <Play className="w-6 h-6 sm:w-8 sm:h-8 fill-current ml-0.5 sm:ml-1" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* Floating Reactions */}
-                {reactions.map((reaction) => (
-                  <div
-                    key={reaction.id}
-                    className="absolute bottom-16 sm:bottom-20 text-2xl sm:text-3xl animate-float-up pointer-events-none"
-                    style={{ left: `${reaction.x}%` }}
-                  >
-                    {reaction.emoji}
-                  </div>
-                ))}
-
-                {/* Live Badge */}
-                {currentService.isLive && (
-                  <div className="absolute top-2 left-2 sm:top-4 sm:left-4 flex items-center gap-1.5 sm:gap-2 bg-red-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg">
-                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full animate-pulse" />
-                    <span className="font-bold text-xs sm:text-sm">LIVE</span>
-                  </div>
-                )}
-
-                {/* Countdown Timer (when not live) */}
-                {!currentService.isLive && (
-                  <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-black/80 backdrop-blur-sm text-white px-2 sm:px-4 py-2 sm:py-3 rounded-lg max-w-[calc(100%-1rem)] sm:max-w-none">
-                    <p className="text-[10px] sm:text-xs text-white/70 mb-1 sm:mb-2">Service starts in</p>
-                    {countdown.days > 0 || countdown.hours > 0 || countdown.minutes > 0 || countdown.seconds > 0 ? (
-                      <div className="flex items-center gap-1 sm:gap-2 font-mono text-sm sm:text-xl font-bold">
-                        {countdown.days > 0 && (
-                          <>
-                            <div className="text-center">
-                              <span className="bg-primary/30 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded block text-xs sm:text-base">{String(countdown.days).padStart(2, '0')}</span>
-                              <span className="text-[8px] sm:text-[10px] text-white/50 block mt-0.5">DAYS</span>
-                            </div>
-                            <span className="text-white/50 text-xs sm:text-base">:</span>
-                          </>
-                        )}
-                        <div className="text-center">
-                          <span className="bg-white/20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded block text-xs sm:text-base">{String(countdown.hours).padStart(2, '0')}</span>
-                          <span className="text-[8px] sm:text-[10px] text-white/50 block mt-0.5">HRS</span>
-                        </div>
-                        <span className="text-white/50 text-xs sm:text-base">:</span>
-                        <div className="text-center">
-                          <span className="bg-white/20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded block text-xs sm:text-base">{String(countdown.minutes).padStart(2, '0')}</span>
-                          <span className="text-[8px] sm:text-[10px] text-white/50 block mt-0.5">MIN</span>
-                        </div>
-                        <span className="text-white/50 text-xs sm:text-base">:</span>
-                        <div className="text-center">
-                          <span className="bg-white/20 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded block text-xs sm:text-base">{String(countdown.seconds).padStart(2, '0')}</span>
-                          <span className="text-[8px] sm:text-[10px] text-white/50 block mt-0.5">SEC</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-base sm:text-lg font-bold text-primary">Starting Soon!</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Viewer Count */}
-                {currentService.isLive && (
-                  <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-black/70 backdrop-blur-sm text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1.5 sm:gap-2">
-                    <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="text-xs sm:text-sm font-medium">{viewerCount.toLocaleString()}</span>
-                  </div>
-                )}
-
-                {/* Closed Captions Display */}
-                {captionsEnabled && isPlaying && (
-                  <div className="absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 bg-black/80 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg max-w-[90%] sm:max-w-[80%] text-center">
-                    <p className="text-xs sm:text-sm md:text-base">
-                      &quot;For I know the plans I have for you, declares the LORD...&quot;
-                    </p>
-                  </div>
-                )}
-
-                {/* Video Controls Bar */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-2 sm:p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-                  {/* Progress Bar */}
-                  <div className="w-full h-1 bg-white/30 rounded-full mb-2 sm:mb-3 cursor-pointer group/progress">
-                    <div className="h-full bg-primary rounded-full w-[35%] relative">
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
+            {/* Countdown Timer (when not live) */}
+            {!streamConfig.isLive && (
+              <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-black via-gray-900 to-black p-6 sm:p-8">
+                <div className="text-center space-y-4">
+                  <Badge variant="outline" className="text-white/70 border-white/30">
+                    <Radio className="w-3 h-3 mr-1.5" />
+                    Next Service
+                  </Badge>
+                  <h3 className="text-lg sm:text-xl font-bold text-white">{currentService.title}</h3>
+                  <p className="text-sm text-white/60">Led by {currentService.speaker}</p>
                   
-                  <div className="flex items-center justify-between gap-2 sm:gap-4">
-                    {/* Left Controls */}
-                    <div className="flex items-center gap-1 sm:gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20 w-8 h-8 sm:w-10 sm:h-10"
-                        onClick={() => setIsPlaying(!isPlaying)}
-                      >
-                        {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />}
-                      </Button>
-                      
-                      {/* Volume Control */}
-                      <div className="flex items-center gap-1 sm:gap-2 group/volume">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20 w-8 h-8 sm:w-10 sm:h-10"
-                          onClick={() => setIsMuted(!isMuted)}
-                        >
-                          {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-                        </Button>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={isMuted ? 0 : volume}
-                          onChange={(e) => {
-                            setVolume(Number(e.target.value));
-                            setIsMuted(false);
-                          }}
-                          className="w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-200 accent-primary cursor-pointer"
-                        />
+                  {/* Countdown */}
+                  {(countdown.days > 0 || countdown.hours > 0 || countdown.minutes > 0 || countdown.seconds > 0) ? (
+                    <div className="flex items-center justify-center gap-2 sm:gap-4 font-mono pt-2">
+                      {countdown.days > 0 && (
+                        <>
+                          <div className="text-center">
+                            <span className="block text-2xl sm:text-3xl font-bold text-primary">{String(countdown.days).padStart(2, '0')}</span>
+                            <span className="text-[10px] sm:text-xs text-white/50">DAYS</span>
+                          </div>
+                          <span className="text-white/30 text-xl">:</span>
+                        </>
+                      )}
+                      <div className="text-center">
+                        <span className="block text-2xl sm:text-3xl font-bold text-white">{String(countdown.hours).padStart(2, '0')}</span>
+                        <span className="text-[10px] sm:text-xs text-white/50">HRS</span>
                       </div>
-                      
-                      <span className="text-white/70 text-xs sm:text-sm hidden sm:inline">1:23:45 / 2:30:00</span>
+                      <span className="text-white/30 text-xl">:</span>
+                      <div className="text-center">
+                        <span className="block text-2xl sm:text-3xl font-bold text-white">{String(countdown.minutes).padStart(2, '0')}</span>
+                        <span className="text-[10px] sm:text-xs text-white/50">MIN</span>
+                      </div>
+                      <span className="text-white/30 text-xl">:</span>
+                      <div className="text-center">
+                        <span className="block text-2xl sm:text-3xl font-bold text-white">{String(countdown.seconds).padStart(2, '0')}</span>
+                        <span className="text-[10px] sm:text-xs text-white/50">SEC</span>
+                      </div>
                     </div>
-
-                    {/* Mobile Reactions Toggle */}
-                    {currentService.isLive && (
-                      <div className="sm:hidden relative">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20 w-8 h-8"
-                          onClick={() => setShowMobileReactions(!showMobileReactions)}
-                        >
-                          <span className="text-lg">🙏</span>
-                        </Button>
-                        {showMobileReactions && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/95 rounded-full px-2 py-1 flex gap-1">
-                            {['❤️', '🙏', '🔥', '✝️', '🙌'].map((emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => {
-                                  addReaction(emoji);
-                                  setShowMobileReactions(false);
-                                }}
-                                className="text-xl hover:scale-125 transition-transform p-1"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Desktop Reaction Buttons */}
-                    {currentService.isLive && (
-                      <div className="hidden sm:flex items-center gap-1">
-                        {['❤️', '🙏', '🔥', '✝️', '🙌'].map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => addReaction(emoji)}
-                            className="text-xl hover:scale-125 transition-transform p-1"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Right Controls */}
-                    <div className="flex items-center gap-0.5 sm:gap-1">
-                      {/* Mobile Settings Button */}
-                      <Sheet open={mobileSettingsOpen} onOpenChange={setMobileSettingsOpen}>
-                        <SheetTrigger asChild>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-white hover:bg-white/20 w-8 h-8 sm:hidden"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </SheetTrigger>
-                        <SheetContent side="bottom" className="bg-background/95 backdrop-blur-lg border-t border-border max-h-[70vh]">
-                          <SheetHeader className="text-left pb-4 border-b border-border">
-                            <SheetTitle>Player Settings</SheetTitle>
-                          </SheetHeader>
-                          <div className="py-4 space-y-4">
-                            {/* Playback Speed */}
-                            <div>
-                              <p className="text-xs text-foreground/70 mb-2 flex items-center gap-2">
-                                <Gauge className="w-4 h-4" /> Playback Speed
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                                  <Button
-                                    key={speed}
-                                    size="sm"
-                                    variant={playbackSpeed === speed ? "default" : "outline"}
-                                    onClick={() => setPlaybackSpeed(speed)}
-                                    className="flex-1 min-w-[60px]"
-                                  >
-                                    {speed}x
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Quality */}
-                            <div>
-                              <p className="text-xs text-foreground/70 mb-2 flex items-center gap-2">
-                                <Settings className="w-4 h-4" /> Video Quality
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {['Auto', '1080p', '720p', '480p', '360p'].map((q) => (
-                                  <Button
-                                    key={q}
-                                    size="sm"
-                                    variant={quality === q ? "default" : "outline"}
-                                    onClick={() => setQuality(q)}
-                                    className="flex-1 min-w-[60px]"
-                                  >
-                                    {q}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Toggle Options */}
-                            <div className="space-y-2">
-                              <button
-                                onClick={() => setCaptionsEnabled(!captionsEnabled)}
-                                className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                                  captionsEnabled ? 'bg-primary/10 border-primary/30' : 'border-border hover:bg-muted'
-                                }`}
-                              >
-                                <span className="flex items-center gap-3">
-                                  <Captions className="w-5 h-5" />
-                                  <span className="text-sm">Closed Captions</span>
-                                </span>
-                                <span className={`text-xs ${captionsEnabled ? 'text-primary' : 'text-foreground/50'}`}>
-                                  {captionsEnabled ? 'ON' : 'OFF'}
-                                </span>
-                              </button>
-
-                              <button
-                                onClick={() => setAudioOnlyMode(!audioOnlyMode)}
-                                className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                                  audioOnlyMode ? 'bg-primary/10 border-primary/30' : 'border-border hover:bg-muted'
-                                }`}
-                              >
-                                <span className="flex items-center gap-3">
-                                  <Headphones className="w-5 h-5" />
-                                  <span className="text-sm">Audio Only Mode</span>
-                                </span>
-                                <span className={`text-xs ${audioOnlyMode ? 'text-primary' : 'text-foreground/50'}`}>
-                                  {audioOnlyMode ? 'ON' : 'OFF'}
-                                </span>
-                              </button>
-                            </div>
-                          </div>
-                        </SheetContent>
-                      </Sheet>
-
-                      {/* Desktop Playback Speed */}
-                      <div className="relative hidden sm:block">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20 h-10 px-2 text-xs font-medium"
-                          onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                        >
-                          {playbackSpeed}x
-                        </Button>
-                        {showSpeedMenu && (
-                          <div className="absolute bottom-full right-0 mb-2 bg-black/95 rounded-lg p-2 min-w-[100px]">
-                            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
-                              <button
-                                key={speed}
-                                onClick={() => {
-                                  setPlaybackSpeed(speed);
-                                  setShowSpeedMenu(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-white/10 ${playbackSpeed === speed ? 'text-primary' : 'text-white'}`}
-                              >
-                                {speed}x {playbackSpeed === speed && '✓'}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Desktop Closed Captions */}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className={`w-10 h-10 hidden sm:flex ${captionsEnabled ? 'text-primary bg-primary/20' : 'text-white hover:bg-white/20'}`}
-                        onClick={() => setCaptionsEnabled(!captionsEnabled)}
-                        title="Toggle Captions (C)"
-                      >
-                        <Captions className="w-5 h-5" />
-                      </Button>
-
-                      {/* Desktop Audio Only Mode */}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className={`w-10 h-10 hidden sm:flex ${audioOnlyMode ? 'text-primary bg-primary/20' : 'text-white hover:bg-white/20'}`}
-                        onClick={() => setAudioOnlyMode(!audioOnlyMode)}
-                        title="Audio Only Mode"
-                      >
-                        <Headphones className="w-5 h-5" />
-                      </Button>
-
-                      {/* Quality Selector - Desktop only */}
-                      <div className="relative hidden sm:block">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20 w-10 h-10"
-                          onClick={() => setShowQualityMenu(!showQualityMenu)}
-                        >
-                          <Settings className="w-5 h-5" />
-                        </Button>
-                        {showQualityMenu && (
-                          <div className="absolute bottom-full right-0 mb-2 bg-black/95 rounded-lg p-2 min-w-[140px]">
-                            <div className="px-3 py-1 text-xs text-white/50 border-b border-white/10 mb-1">Quality</div>
-                            {[
-                              { label: '1080p', badge: 'HD' },
-                              { label: '720p', badge: 'HD' },
-                              { label: '480p', badge: '' },
-                              { label: '360p', badge: '' },
-                              { label: 'Auto', badge: '' },
-                            ].map((q) => (
-                              <button
-                                key={q.label}
-                                onClick={() => {
-                                  setQuality(q.label);
-                                  setShowQualityMenu(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-white/10 flex items-center justify-between ${quality === q.label ? 'text-primary' : 'text-white'}`}
-                              >
-                                <span>{q.label}</span>
-                                <span className="flex items-center gap-1">
-                                  {q.badge && <span className="text-[10px] bg-primary/30 text-primary px-1 rounded">{q.badge}</span>}
-                                  {quality === q.label && '✓'}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20 w-10 h-10 hidden sm:flex"
-                        onClick={togglePiP}
-                      >
-                        <PictureInPicture className="w-5 h-5" />
-                      </Button>
-
-                      {/* Desktop Keyboard Shortcuts */}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20 w-10 h-10 hidden sm:flex"
-                        onClick={() => setShowKeyboardShortcuts(true)}
-                        title="Keyboard Shortcuts (?)"
-                      >
-                        <Keyboard className="w-5 h-5" />
-                      </Button>
-                      
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-white hover:bg-white/20 w-8 h-8 sm:w-10 sm:h-10"
-                        onClick={toggleFullscreen}
-                      >
-                        {isFullscreen ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />}
-                      </Button>
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="text-lg font-bold text-primary animate-pulse">Starting Soon!</p>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Service Details */}
             <div className="space-y-4">
@@ -988,8 +490,9 @@ END:VCALENDAR`;
                   </h2>
                   <p className="text-sm md:text-base text-foreground/70">Led by {currentService.speaker}</p>
                 </div>
-                {currentService.isLive && (
-                  <Badge className="bg-red-600 hover:bg-red-600 flex-shrink-0 text-xs">
+                {streamConfig.isLive && (
+                  <Badge className="bg-red-600 hover:bg-red-600 flex-shrink-0 text-xs animate-pulse">
+                    <Radio className="w-3 h-3 mr-1" />
                     LIVE
                   </Badge>
                 )}
@@ -1296,17 +799,11 @@ END:VCALENDAR`;
               Keyboard Shortcuts
             </DialogTitle>
             <DialogDescription>
-              Use these shortcuts to control the video player
+              Helpful keyboard shortcuts for the live page
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 pt-4">
             {[
-              { key: 'Space / K', action: 'Play / Pause' },
-              { key: 'F', action: 'Toggle Fullscreen' },
-              { key: 'M', action: 'Toggle Mute' },
-              { key: 'C', action: 'Toggle Captions' },
-              { key: '↑', action: 'Increase Volume' },
-              { key: '↓', action: 'Decrease Volume' },
               { key: '?', action: 'Show Shortcuts' },
               { key: 'Esc', action: 'Close Menus' },
             ].map((shortcut) => (
