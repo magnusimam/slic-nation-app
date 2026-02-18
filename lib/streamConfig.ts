@@ -28,22 +28,22 @@ export const streamConfig: StreamConfig = {
   // Change to 'youtube' or 'facebook' when ready to stream
   platform: 'youtube',
   
-  // YouTube: paste your video/stream ID here
+  // YouTube: paste your video/stream ID here (overrides auto-detect)
   // Example: for https://youtube.com/watch?v=dQw4w9WgXcQ → use 'dQw4w9WgXcQ'
   youtubeVideoId: '',
   
-  // Optional: Your YouTube channel ID for auto-embed
-  // Go to youtube.com/account_advanced to find your channel ID
-  youtubeLiveChannelId: '',
+  // Your YouTube channel ID for auto-detecting live streams
+  // Set via NEXT_PUBLIC_YOUTUBE_CHANNEL_ID env variable, or hardcode here
+  youtubeLiveChannelId: process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID || '',
   
   // Facebook: paste full video URL here
   // Example: 'https://www.facebook.com/SLICNations/videos/123456789'
   facebookVideoUrl: '',
   
-  // Set to true when you start streaming, false when done
+  // When true, forces the player to show as live (auto-detect overrides this when YouTube API is configured)
   isLive: false,
   
-  // Override stream title (leave empty to use service title)
+  // Override stream title (leave empty to auto-pull from YouTube)
   title: '',
   
   // Fallback thumbnail when offline

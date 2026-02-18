@@ -25,6 +25,10 @@ interface LiveStreamPlayerProps {
   config: StreamConfig;
   fallbackThumbnail?: string;
   serviceThumbnail?: string;
+  /** Override from auto-detected YouTube live video ID */
+  autoDetectedVideoId?: string | null;
+  /** Override live status from YouTube API */
+  autoDetectedIsLive?: boolean;
   onLiveStatusChange?: (isLive: boolean) => void;
 }
 
@@ -32,6 +36,8 @@ export function LiveStreamPlayer({
   config,
   fallbackThumbnail,
   serviceThumbnail,
+  autoDetectedVideoId,
+  autoDetectedIsLive,
   onLiveStatusChange,
 }: LiveStreamPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,8 +46,12 @@ export function LiveStreamPlayer({
   const [showOverlay, setShowOverlay] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
 
-  const isStreamReady = config.isLive && config.platform !== 'none' && (
-    (config.platform === 'youtube' && (config.youtubeVideoId || config.youtubeLiveChannelId)) ||
+  // Use auto-detected values when available, fall back to manual config
+  const effectiveIsLive = autoDetectedIsLive !== undefined ? autoDetectedIsLive : config.isLive;
+  const effectiveVideoId = autoDetectedVideoId || config.youtubeVideoId;
+
+  const isStreamReady = effectiveIsLive && config.platform !== 'none' && (
+    (config.platform === 'youtube' && (effectiveVideoId || config.youtubeLiveChannelId)) ||
     (config.platform === 'facebook' && config.facebookVideoUrl)
   );
 
@@ -78,8 +88,8 @@ export function LiveStreamPlayer({
 
   const getEmbedUrl = (): string | null => {
     if (config.platform === 'youtube') {
-      if (config.youtubeVideoId) {
-        return getYouTubeEmbedUrl(config.youtubeVideoId, true);
+      if (effectiveVideoId) {
+        return getYouTubeEmbedUrl(effectiveVideoId, true);
       }
       if (config.youtubeLiveChannelId) {
         return getYouTubeLiveByChannelUrl(config.youtubeLiveChannelId);

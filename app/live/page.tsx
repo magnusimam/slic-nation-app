@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { streamConfig } from '@/lib/streamConfig';
+import { useYouTubeLive } from '@/hooks/useYouTubeLive';
+import { Users, Loader2, RefreshCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -83,8 +85,33 @@ const RECENT_REPLAYS = [
 export default function LivePage() {
   const currentService = LIVE_SERVICES[0];
   const upcomingServices = LIVE_SERVICES.slice(1);
-  
 
+  // YouTube API auto-detect
+  const {
+    stream: ytStream,
+    isLive: ytIsLive,
+    isLoading: ytLoading,
+    chatMessages: ytChatMessages,
+    liveVideoId,
+    replays: ytReplays,
+    upcoming: ytUpcoming,
+    isConfigured: ytConfigured,
+    refresh: ytRefresh,
+  } = useYouTubeLive({
+    videoId: streamConfig.youtubeVideoId || undefined,
+    channelId: streamConfig.youtubeLiveChannelId || undefined,
+    enableChat: true,
+    fetchReplays: true,
+    fetchUpcoming: true,
+  });
+
+  // Derived: use YouTube data when available, fall back to mock
+  const effectiveIsLive = ytConfigured ? ytIsLive : streamConfig.isLive;
+  const effectiveTitle = ytStream?.title || currentService.title;
+  const effectiveDescription = ytStream?.description || '';
+  const effectiveThumbnail = ytStream?.thumbnail || currentService.thumbnail;
+  const effectiveViewerCount = ytStream?.concurrentViewers;
+  const effectiveChannelTitle = ytStream?.channelTitle || currentService.speaker;
 
   // Countdown state
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -141,7 +168,7 @@ export default function LivePage() {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [chatMessages, ytChatMessages]);
 
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
@@ -433,11 +460,42 @@ END:VCALENDAR`;
             {/* Live Stream Player */}
             <LiveStreamPlayer
               config={streamConfig}
-              serviceThumbnail={currentService.thumbnail}
+              serviceThumbnail={effectiveThumbnail}
+              autoDetectedVideoId={liveVideoId}
+              autoDetectedIsLive={ytConfigured ? ytIsLive : undefined}
             />
 
+            {/* YouTube Live Info Bar */}
+            {ytConfigured && (
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  {ytLoading && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Checking YouTube...
+                    </Badge>
+                  )}
+                  {effectiveIsLive && effectiveViewerCount && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Users className="w-3 h-3" />
+                      {effectiveViewerCount.toLocaleString()} watching
+                    </Badge>
+                  )}
+                  {effectiveIsLive && ytStream?.likeCount && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      ❤️ {ytStream.likeCount.toLocaleString()}
+                    </Badge>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={ytRefresh} className="text-xs gap-1 h-7">
+                  <RefreshCw className="w-3 h-3" />
+                  Refresh
+                </Button>
+              </div>
+            )}
+
             {/* Countdown Timer (when not live) */}
-            {!streamConfig.isLive && (
+            {!effectiveIsLive && (
               <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-black via-gray-900 to-black p-6 sm:p-8">
                 <div className="text-center space-y-4">
                   <Badge variant="outline" className="text-white/70 border-white/30">
@@ -486,11 +544,14 @@ END:VCALENDAR`;
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 md:mb-2">
-                    {currentService.title}
+                    {effectiveTitle}
                   </h2>
-                  <p className="text-sm md:text-base text-foreground/70">Led by {currentService.speaker}</p>
+                  <p className="text-sm md:text-base text-foreground/70">Led by {effectiveChannelTitle}</p>
+                  {effectiveDescription && (
+                    <p className="text-xs text-foreground/60 mt-2 line-clamp-3">{effectiveDescription}</p>
+                  )}
                 </div>
-                {streamConfig.isLive && (
+                {effectiveIsLive && (
                   <Badge className="bg-red-600 hover:bg-red-600 flex-shrink-0 text-xs animate-pulse">
                     <Radio className="w-3 h-3 mr-1" />
                     LIVE
@@ -570,16 +631,59 @@ END:VCALENDAR`;
               {/* Chat/Comments Section */}
               <div className="bg-card rounded-lg p-4 md:p-6 border border-border">
                 <div className="flex items-center justify-between mb-3 md:mb-4">
-                  <h3 className="font-semibold text-foreground text-sm md:text-base">Live Chat</h3>
+                  <h3 className="font-semibold text-foreground text-sm md:text-base">
+                    {ytChatMessages.length > 0 ? 'YouTube Live Chat' : 'Live Chat'}
+                  </h3>
                   <Badge variant="outline" className="text-xs">
-                    {chatMessages.length} messages
+                    {ytChatMessages.length > 0 ? ytChatMessages.length : chatMessages.length} messages
                   </Badge>
                 </div>
                 <div 
                   ref={chatContainerRef}
                   className="space-y-3 mb-4 h-48 md:h-64 overflow-y-auto border border-border rounded-lg p-3 md:p-4 scroll-smooth"
                 >
-                  {chatMessages.map((msg: any) => (
+                  {/* Show YouTube live chat when available */}
+                  {ytChatMessages.length > 0 ? (
+                    ytChatMessages.map((msg) => (
+                      <div key={msg.id} className="flex gap-2 animate-fade-in">
+                        {msg.authorAvatar ? (
+                          <img 
+                            src={msg.authorAvatar} 
+                            alt={msg.authorName}
+                            className="w-8 h-8 rounded-full shrink-0 object-cover"
+                          />
+                        ) : (
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                            msg.isOwner ? 'bg-primary text-primary-foreground' : msg.isModerator ? 'bg-blue-500/20 text-blue-500' : 'bg-muted text-foreground'
+                          }`}>
+                            {msg.authorName.charAt(0)}
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-xs font-semibold ${msg.isOwner ? 'text-primary' : msg.isModerator ? 'text-blue-500' : 'text-foreground'}`}>
+                              {msg.authorName}
+                            </span>
+                            {msg.isOwner && (
+                              <Badge className="text-[10px] h-4 bg-primary/20 text-primary border-0">OWNER</Badge>
+                            )}
+                            {msg.isModerator && !msg.isOwner && (
+                              <Badge className="text-[10px] h-4 bg-blue-500/20 text-blue-500 border-0">MOD</Badge>
+                            )}
+                            {msg.isMember && (
+                              <Badge className="text-[10px] h-4 bg-green-500/20 text-green-500 border-0">MEMBER</Badge>
+                            )}
+                            <span className="text-[10px] text-foreground/50">
+                              {new Date(msg.publishedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-foreground/90 mt-0.5">{msg.message}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    /* Fallback to mock chat */
+                    chatMessages.map((msg: any) => (
                     <div 
                       key={msg.id} 
                       className={`flex gap-2 ${msg.isNew ? 'animate-fade-in' : ''} ${msg.isMe ? 'flex-row-reverse' : ''}`}
@@ -608,7 +712,8 @@ END:VCALENDAR`;
                         </p>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  )}
                 </div>
                 <form onSubmit={handleSendChat} className="flex gap-2">
                   <input
@@ -724,7 +829,43 @@ END:VCALENDAR`;
                 </Button>
               </div>
               <div className="space-y-2">
-                {RECENT_REPLAYS.map((replay) => (
+                {/* YouTube replays when available */}
+                {ytReplays.length > 0 ? (
+                  ytReplays.map((replay) => (
+                    <a
+                      key={replay.id}
+                      href={`https://youtube.com/watch?v=${replay.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full group block"
+                    >
+                      <div className="flex gap-2 sm:gap-3 p-2 rounded-lg hover:bg-muted transition-colors">
+                        <div className="relative w-20 sm:w-24 h-12 sm:h-14 rounded-md overflow-hidden shrink-0 bg-muted">
+                          <img 
+                            src={replay.thumbnail} 
+                            alt={replay.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                            {replay.title}
+                          </p>
+                          <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1">
+                            <span className="text-[10px] sm:text-xs text-foreground/60">
+                              {new Date(replay.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  ))
+                ) : (
+                  /* Fallback to mock replays */
+                  RECENT_REPLAYS.map((replay) => (
                   <button
                     key={replay.id}
                     className="w-full group"
@@ -760,7 +901,8 @@ END:VCALENDAR`;
                       </div>
                     </div>
                   </button>
-                ))}
+                ))
+                )}
               </div>
             </div>
 
