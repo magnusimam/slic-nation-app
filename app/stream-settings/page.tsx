@@ -52,6 +52,16 @@ import {
   updateSchedule,
   type ScheduledService,
 } from '@/lib/scheduleManager';
+import {
+  getRecurringServices,
+  saveRecurringServices,
+  addRecurringService,
+  updateRecurringService,
+  deleteRecurringService,
+  resetToDefaultServices,
+  DEFAULT_RECURRING_SERVICES,
+  type RecurringService,
+} from '@/lib/recurringSchedules';
 
 export default function StreamSettingsPage() {
   const [platform, setPlatform] = useState<StreamPlatform>('youtube');
@@ -87,6 +97,17 @@ export default function StreamSettingsPage() {
   const [formIsSpecial, setFormIsSpecial] = useState(false);
   const [formThumbnail, setFormThumbnail] = useState('');
 
+  // Recurring services state
+  const [recurringServices, setRecurringServices] = useState<RecurringService[]>([]);
+  const [showRecurringForm, setShowRecurringForm] = useState(false);
+  const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
+  const [recurringTitle, setRecurringTitle] = useState('');
+  const [recurringDayOfWeek, setRecurringDayOfWeek] = useState(0);
+  const [recurringTime, setRecurringTime] = useState('');
+  const [recurringDuration, setRecurringDuration] = useState(2);
+  const [recurringSpeaker, setRecurringSpeaker] = useState('Apst Emmanuel Etim');
+  const [recurringThumbnail, setRecurringThumbnail] = useState('');
+
   // Load saved stream config + schedules from localStorage on mount
   useEffect(() => {
     const savedConfig = getStreamConfig();
@@ -113,6 +134,7 @@ export default function StreamSettingsPage() {
     
     setConfigLoaded(true);
     setSchedules(getSchedules());
+    setRecurringServices(getRecurringServices());
   }, []);
 
   const resetForm = () => {
@@ -125,6 +147,77 @@ export default function StreamSettingsPage() {
     setFormThumbnail('');
     setEditingId(null);
     setShowAddForm(false);
+  };
+
+  // Recurring services helpers
+  const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const resetRecurringForm = () => {
+    setRecurringTitle('');
+    setRecurringDayOfWeek(0);
+    setRecurringTime('');
+    setRecurringDuration(2);
+    setRecurringSpeaker('Apst Emmanuel Etim');
+    setRecurringThumbnail('');
+    setEditingRecurringId(null);
+    setShowRecurringForm(false);
+  };
+
+  const handleAddRecurring = () => {
+    if (!recurringTitle || !recurringTime) return;
+    
+    const thumbnail = recurringThumbnail || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=450&fit=crop';
+    
+    if (editingRecurringId) {
+      updateRecurringService(editingRecurringId, {
+        title: recurringTitle,
+        dayOfWeek: recurringDayOfWeek,
+        time: recurringTime,
+        durationHours: recurringDuration,
+        speaker: recurringSpeaker,
+        thumbnail,
+      });
+    } else {
+      addRecurringService({
+        title: recurringTitle,
+        dayOfWeek: recurringDayOfWeek,
+        time: recurringTime,
+        durationHours: recurringDuration,
+        speaker: recurringSpeaker,
+        thumbnail,
+      });
+    }
+    
+    setRecurringServices(getRecurringServices());
+    resetRecurringForm();
+  };
+
+  const handleEditRecurring = (service: RecurringService) => {
+    setEditingRecurringId(service.id);
+    setRecurringTitle(service.title);
+    setRecurringDayOfWeek(service.dayOfWeek);
+    setRecurringTime(service.time);
+    setRecurringDuration(service.durationHours);
+    setRecurringSpeaker(service.speaker);
+    setRecurringThumbnail(service.thumbnail || '');
+    setShowRecurringForm(true);
+  };
+
+  const handleDeleteRecurring = (id: string) => {
+    deleteRecurringService(id);
+    setRecurringServices(getRecurringServices());
+  };
+
+  const handleResetToDefaults = () => {
+    resetToDefaultServices();
+    setRecurringServices(getRecurringServices());
+  };
+
+  const formatTime12Hour = (time24: string) => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   const handleAddSchedule = () => {
@@ -798,6 +891,182 @@ export default function StreamSettingsPage() {
                     </div>
                   </>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* ━━━ Recurring Services Manager ━━━ */}
+          <div className="rounded-xl border-2 border-secondary/30 bg-card p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-secondary flex-shrink-0" />
+                  Recurring Weekly Services
+                </h2>
+                <p className="text-xs sm:text-sm text-foreground/70">
+                  Set your regular weekly services — countdown automatically updates to the next occurrence
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {!showRecurringForm && (
+                  <Button onClick={() => setShowRecurringForm(true)} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Add Service
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Add/Edit Recurring Service Form */}
+            {showRecurringForm && (
+              <div className="rounded-lg border border-secondary/30 bg-secondary/5 p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+                    {editingRecurringId ? <Edit2 className="w-4 h-4 text-secondary" /> : <Plus className="w-4 h-4 text-secondary" />}
+                    {editingRecurringId ? 'Edit Recurring Service' : 'New Recurring Service'}
+                  </h3>
+                  <button onClick={resetRecurringForm} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                    <X className="w-4 h-4 text-foreground/50" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Title */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Service Title *</label>
+                    <Input
+                      placeholder="e.g., Sunday Morning Service"
+                      value={recurringTitle}
+                      onChange={(e) => setRecurringTitle(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Day of Week */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Day of Week *</label>
+                    <select
+                      value={recurringDayOfWeek}
+                      onChange={(e) => setRecurringDayOfWeek(Number(e.target.value))}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {DAYS_OF_WEEK.map((day, index) => (
+                        <option key={day} value={index}>{day}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Time */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Time *</label>
+                    <Input
+                      type="time"
+                      value={recurringTime}
+                      onChange={(e) => setRecurringTime(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Duration */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Duration (hours)</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={recurringDuration}
+                      onChange={(e) => setRecurringDuration(Number(e.target.value))}
+                    />
+                  </div>
+
+                  {/* Speaker */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Speaker</label>
+                    <Input
+                      placeholder="e.g., Apst Emmanuel Etim"
+                      value={recurringSpeaker}
+                      onChange={(e) => setRecurringSpeaker(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Thumbnail URL */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">
+                      Thumbnail URL <span className="text-foreground/50">(optional)</span>
+                    </label>
+                    <Input
+                      placeholder="https://... (leave blank for default)"
+                      value={recurringThumbnail}
+                      onChange={(e) => setRecurringThumbnail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={handleAddRecurring} className="gap-2">
+                    <Check className="w-4 h-4" />
+                    {editingRecurringId ? 'Update Service' : 'Add Service'}
+                  </Button>
+                  <Button variant="outline" onClick={resetRecurringForm}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Recurring Services List */}
+            {recurringServices.length === 0 ? (
+              <div className="text-center py-8 text-foreground/50">
+                <Clock className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No recurring services set</p>
+                <p className="text-xs mt-1">Add your weekly services above</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recurringServices.map((service) => (
+                  <div
+                    key={service.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-5 h-5 text-secondary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">{service.title}</p>
+                      <p className="text-xs text-foreground/70">
+                        Every <span className="text-secondary font-medium">{DAYS_OF_WEEK[service.dayOfWeek]}</span> at{' '}
+                        <span className="font-medium">{formatTime12Hour(service.time)}</span>
+                        <span className="text-foreground/50"> · {service.durationHours}hr · {service.speaker}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditRecurring(service)}
+                        className="p-2 rounded-lg hover:bg-primary/10 text-foreground/50 hover:text-primary transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRecurring(service.id)}
+                        className="p-2 rounded-lg hover:bg-red-500/10 text-foreground/50 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Reset to Defaults */}
+            {recurringServices.length > 0 && (
+              <div className="flex justify-end pt-2 border-t border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetToDefaults}
+                  className="text-foreground/50 hover:text-foreground text-xs"
+                >
+                  Reset to Default Services
+                </Button>
               </div>
             )}
           </div>

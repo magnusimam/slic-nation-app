@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { AnimatedBooksSlider } from '@/components/AnimatedBooksSlider';
 import { BookCard } from '@/components/BookCard';
-import { BOOKS } from '@/lib/mockData';
+import { getBooks, type ManagedBook } from '@/lib/contentManager';
 import { Book } from '@/lib/types';
 import { Search, BookOpen, Download, Mail, Sparkles, TrendingUp, ChevronRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -18,15 +18,22 @@ export default function BooksPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  
+  // Load books from content manager
+  const [books, setBooks] = useState<ManagedBook[]>([]);
+  
+  useEffect(() => {
+    setBooks(getBooks());
+  }, []);
 
   // Curated collections
-  const featuredBooks = useMemo(() => BOOKS.filter(book => book.isFeatured), []);
+  const featuredBooks = useMemo(() => books.filter(book => book.isFeatured), [books]);
   const mostDownloaded = useMemo(() => 
-    [...BOOKS].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 4), 
-  []);
+    [...books].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 4), 
+  [books]);
 
   const filteredBooks = useMemo(() => {
-    return BOOKS.filter((book) => {
+    return books.filter((book) => {
       const matchesSearch =
         book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         book.author.toLowerCase().includes(searchTerm.toLowerCase());
@@ -36,7 +43,7 @@ export default function BooksPage() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, books]);
 
   const handleReadBook = (book: Book) => {
     console.log('Reading book:', book.title);
@@ -60,21 +67,21 @@ export default function BooksPage() {
   };
 
   // Author data
-  const authorInfo = {
+  const authorInfo = useMemo(() => ({
     name: 'Apst Emmanuel Etim',
     title: 'Founder, SLIC Nations',
     quote: '"Every book is a seed of revelation planted in the hearts of believers to produce a harvest of transformation."',
-    booksCount: BOOKS.filter(b => b.author === 'Apst Emmanuel Etim').length,
-    totalDownloads: BOOKS.filter(b => b.author === 'Apst Emmanuel Etim')
+    booksCount: books.filter(b => b.author === 'Apst Emmanuel Etim').length,
+    totalDownloads: books.filter(b => b.author === 'Apst Emmanuel Etim')
       .reduce((sum, b) => sum + (b.downloads || 0), 0),
-  };
+  }), [books]);
 
   return (
     <div className="min-h-screen bg-background">
       <Header transparent />
 
       {/* Animated Books Slider */}
-      <AnimatedBooksSlider books={BOOKS.slice(0, 6)} />
+      <AnimatedBooksSlider books={books.slice(0, 6)} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-12 md:space-y-16">
         

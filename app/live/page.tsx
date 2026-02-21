@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
 import { MobileNavBar } from '@/components/layout/MobileNavBar';
 import { Footer } from '@/components/layout/Footer';
-import { LIVE_SERVICES } from '@/lib/mockData';
-import { getUpcomingServices, getNextService } from '@/lib/scheduleManager';
+import { getNextUpcomingService, getServicesForWeeks } from '@/lib/recurringSchedules';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
+import { BankTransferDetails } from '@/components/BankTransferDetails';
 import { streamConfig as defaultStreamConfig } from '@/lib/streamConfig';
 import { getStreamConfig } from '@/lib/streamConfigManager';
 import { useYouTubeLive } from '@/hooks/useYouTubeLive';
@@ -41,11 +41,8 @@ import {
   CalendarPlus,
   PlayCircle,
   Eye,
-  FileText,
   Radio,
   Keyboard,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 // Mock chat messages
@@ -68,16 +65,6 @@ const INCOMING_MESSAGES = [
   { user: 'Mercy J.', message: 'This is exactly what I needed to hear' },
 ];
 
-// Sermon notes mock data
-const SERMON_OUTLINE = [
-  { id: 1, title: 'Introduction', time: '0:00', content: 'Welcome and opening prayer' },
-  { id: 2, title: 'The Call to Purpose', time: '15:30', content: 'Understanding God\'s unique design for your life - Jeremiah 29:11' },
-  { id: 3, title: 'Overcoming Obstacles', time: '35:00', content: 'Breaking through barriers that hinder your destiny' },
-  { id: 4, title: 'Walking in Faith', time: '52:00', content: 'Practical steps to activate your purpose daily' },
-  { id: 5, title: 'Prayer & Declaration', time: '1:15:00', content: 'Corporate prayer and prophetic declarations' },
-  { id: 6, title: 'Closing & Benediction', time: '1:35:00', content: 'Final words and blessing' },
-];
-
 // Recent replays mock data
 const RECENT_REPLAYS = [
   { id: 'r1', title: 'Walking in Divine Purpose', date: '2026-02-15', views: 3420, duration: '1:45:00', thumbnail: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=400&h=225&fit=crop' },
@@ -86,26 +73,40 @@ const RECENT_REPLAYS = [
 ];
 
 export default function LivePage() {
-  // Get services from admin schedules, falling back to mock data
-  const [currentService, setCurrentService] = useState(LIVE_SERVICES[0]);
-  const [upcomingServices, setUpcomingServices] = useState(LIVE_SERVICES.slice(1));
+  // Dynamic service schedule - auto-calculates next service based on current date/time
+  const [currentService, setCurrentService] = useState(() => getNextUpcomingService());
+  const [upcomingServices, setUpcomingServices] = useState(() => {
+    const all = getServicesForWeeks(4);
+    return all.slice(1); // Skip the current/next service
+  });
 
   // Load stream config from admin settings (localStorage)
   // Initialize with default to avoid hydration mismatch (localStorage not available on server)
   const [streamConfig, setStreamConfig] = useState(defaultStreamConfig);
+
+  // Function to refresh schedule (called on mount and when countdown reaches zero)
+  const refreshSchedule = useCallback(() => {
+    const nextService = getNextUpcomingService();
+    setCurrentService(nextService);
+    
+    const allServices = getServicesForWeeks(4);
+    // Filter out the current service and show upcoming ones
+    const upcoming = allServices.filter(s => s.id !== nextService.id);
+    setUpcomingServices(upcoming);
+  }, []);
 
   // Load admin-created schedules + live stream config on mount
   useEffect(() => {
     // Refresh config from localStorage (in case admin updated it)
     setStreamConfig(getStreamConfig());
 
-    const next = getNextService(LIVE_SERVICES);
-    if (next) setCurrentService(next);
+    // Refresh schedule on mount
+    refreshSchedule();
     
-    const upcoming = getUpcomingServices(LIVE_SERVICES);
-    // Skip the first one (it's the "current" service) and show the rest
-    setUpcomingServices(upcoming.slice(1));
-  }, []);
+    // Refresh schedule every minute to catch service transitions
+    const scheduleInterval = setInterval(refreshSchedule, 60000);
+    return () => clearInterval(scheduleInterval);
+  }, [refreshSchedule]);
 
   // YouTube API auto-detect
   const {
@@ -155,8 +156,6 @@ export default function LivePage() {
 
 
   // UI states
-  const [showNotes, setShowNotes] = useState(true);
-  const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
   // Chat state
@@ -263,9 +262,9 @@ END:VCALENDAR`;
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Countdown timer effect
+  // Countdown timer effect - also refreshes schedule when countdown reaches zero
   useEffect(() => {
-    if (currentService.isLive) return;
+    if (effectiveIsLive) return; // Don't countdown when live
     
     const serviceDate = new Date(currentService.date + ' ' + currentService.time);
     
@@ -275,6 +274,8 @@ END:VCALENDAR`;
       
       if (diff <= 0) {
         setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        // Service time has passed - refresh to get the next service
+        refreshSchedule();
         return;
       }
       
@@ -289,7 +290,7 @@ END:VCALENDAR`;
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [currentService]);
+  }, [currentService, effectiveIsLive, refreshSchedule]);
 
   const handlePrayerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -607,50 +608,6 @@ END:VCALENDAR`;
                 </div>
               </div>
 
-              {/* Sermon Notes/Outline */}
-              <div className="bg-card rounded-lg border border-border overflow-hidden">
-                <button 
-                  onClick={() => setShowNotes(!showNotes)}
-                  className="w-full p-3 sm:p-4 md:p-6 flex items-center justify-between hover:bg-muted/50 transition-colors gap-2"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
-                    <h3 className="font-semibold text-foreground text-xs sm:text-sm md:text-base truncate">Sermon Outline</h3>
-                    <Badge variant="secondary" className="text-[10px] sm:text-xs">{SERMON_OUTLINE.length} points</Badge>
-                  </div>
-                  {showNotes ? <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
-                </button>
-                
-                {showNotes && (
-                  <div className="px-3 pb-3 sm:px-4 sm:pb-4 md:px-6 md:pb-6 space-y-1.5 sm:space-y-2">
-                    {SERMON_OUTLINE.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setExpandedNoteId(expandedNoteId === item.id ? null : item.id)}
-                        className="w-full text-left"
-                      >
-                        <div className={`p-2 sm:p-3 rounded-lg border transition-colors ${expandedNoteId === item.id ? 'bg-primary/10 border-primary/30' : 'bg-muted/50 border-transparent hover:bg-muted'}`}>
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary/20 text-primary text-[10px] sm:text-xs font-bold flex items-center justify-center flex-shrink-0">
-                                {item.id}
-                              </span>
-                              <span className="text-xs sm:text-sm font-medium text-foreground truncate">{item.title}</span>
-                            </div>
-                            <span className="text-[10px] sm:text-xs text-foreground/50 font-mono flex-shrink-0">{item.time}</span>
-                          </div>
-                          {expandedNoteId === item.id && (
-                            <p className="mt-1.5 sm:mt-2 ml-7 sm:ml-9 text-xs sm:text-sm text-foreground/70 animate-fade-in">
-                              {item.content}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               {/* Chat/Comments Section */}
               {streamConfig.chat?.enabled !== false && (
               <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border">
@@ -876,6 +833,9 @@ END:VCALENDAR`;
                   Give Now
                 </Button>
               </div>
+
+              {/* Bank Transfer Details - Compact */}
+              <BankTransferDetails variant="compact" />
             </div>
           </div>
 
@@ -920,7 +880,7 @@ END:VCALENDAR`;
               <div className="space-y-2">
                 {/* YouTube replays when available */}
                 {ytReplays.length > 0 ? (
-                  ytReplays.map((replay) => (
+                  ytReplays.slice(0, 3).map((replay) => (
                     <a
                       key={replay.id}
                       href={`https://youtube.com/watch?v=${replay.id}`}

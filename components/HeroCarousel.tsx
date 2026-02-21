@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Play, Info, Plus, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Info, Plus } from 'lucide-react';
 import { Video } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 
@@ -13,7 +13,6 @@ interface HeroCarouselProps {
 export function HeroCarousel({ items, onPlayVideo }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlay, setIsAutoPlay] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
@@ -24,7 +23,7 @@ export function HeroCarousel({ items, onPlayVideo }: HeroCarouselProps) {
   }, []);
 
   useEffect(() => {
-    if (!isAutoPlay) return;
+    if (!isAutoPlay || items.length === 0) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % items.length);
@@ -32,6 +31,15 @@ export function HeroCarousel({ items, onPlayVideo }: HeroCarouselProps) {
 
     return () => clearInterval(interval);
   }, [isAutoPlay, items.length]);
+
+  // Guard against empty items array
+  if (items.length === 0) {
+    return (
+      <div className="relative w-full h-[56.25vw] min-h-[400px] max-h-[85vh] bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading...</div>
+      </div>
+    );
+  }
 
   const current = items[currentIndex];
 
@@ -180,14 +188,6 @@ export function HeroCarousel({ items, onPlayVideo }: HeroCarouselProps) {
         className="hidden md:flex absolute right-0 top-0 bottom-0 w-12 lg:w-16 z-20 bg-black/0 hover:bg-black/30 text-white/50 hover:text-white items-center justify-center transition-all opacity-0 hover:opacity-100 group"
       >
         <ChevronRight className="w-8 h-8 lg:w-12 lg:h-12 group-hover:scale-125 transition-transform" />
-      </button>
-
-      {/* Mute Button */}
-      <button
-        onClick={() => setIsMuted(!isMuted)}
-        className="absolute right-4 lg:right-16 bottom-1/3 z-20 w-10 h-10 lg:w-12 lg:h-12 rounded-full border border-white/40 flex items-center justify-center text-white/70 hover:text-white hover:border-white transition-colors"
-      >
-        {isMuted ? <VolumeX className="w-5 h-5 lg:w-6 lg:h-6" /> : <Volume2 className="w-5 h-5 lg:w-6 lg:h-6" />}
       </button>
 
       {/* Progress Indicators - Netflix Style */}

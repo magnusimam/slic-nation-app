@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
+import { MobileNavBar } from '@/components/layout/MobileNavBar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { BankTransferDetails } from '@/components/BankTransferDetails';
 import { Heart, Check } from 'lucide-react';
 
 type DonationType = 'tithe' | 'offering' | 'partnership';
@@ -251,9 +253,16 @@ export default function DonatePage() {
             </div>
           </div>
         </div>
+
+        {/* Bank Transfer Section - Full Width */}
+        <div className="mb-8">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground mb-4">Give via Bank Transfer</h2>
+          <BankTransferDetails variant="full" />
+        </div>
       </main>
 
       <Footer />
+      <MobileNavBar />
     </div>
   );
 }

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { VideoCard } from '@/components/VideoCard';
-import { SERMON_VIDEOS, CATEGORY_OPTIONS, SPEAKERS } from '@/lib/mockData';
+import { VideoModal } from '@/components/VideoModal';
+import { CATEGORY_OPTIONS, SPEAKERS } from '@/lib/mockData';
+import { getVideos, type ManagedVideo } from '@/lib/contentManager';
 import { Video } from '@/lib/types';
 import { Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,9 +25,17 @@ export default function LibraryPage() {
   const [selectedSpeaker, setSelectedSpeaker] = useState('All Speakers');
   const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<ManagedVideo | null>(null);
+  
+  // Load videos from content manager
+  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  
+  useEffect(() => {
+    setVideos(getVideos());
+  }, []);
 
   const filteredVideos = useMemo(() => {
-    return SERMON_VIDEOS.filter((video) => {
+    return videos.filter((video) => {
       const matchesSearch =
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,7 +51,7 @@ export default function LibraryPage() {
 
       return matchesSearch && matchesCategory && matchesSpeaker;
     });
-  }, [searchTerm, selectedCategory, selectedSpeaker]);
+  }, [searchTerm, selectedCategory, selectedSpeaker, videos]);
 
   const handleSaveItem = (video: Video) => {
     const newSaved = new Set(savedItems);
@@ -164,7 +174,7 @@ export default function LibraryPage() {
               <VideoCard
                 key={video.id}
                 video={video}
-                onPlay={() => console.log('Play', video.title)}
+                onPlay={() => setSelectedVideo(video)}
                 onSave={handleSaveItem}
               />
             ))}
@@ -188,6 +198,13 @@ export default function LibraryPage() {
       </main>
 
       <Footer />
+
+      {/* Video Modal */}
+      <VideoModal
+        video={selectedVideo}
+        isOpen={!!selectedVideo}
+        onClose={() => setSelectedVideo(null)}
+      />
     </div>
   );
 }

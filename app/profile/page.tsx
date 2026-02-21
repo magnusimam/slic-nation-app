@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { VideoCard } from '@/components/VideoCard';
-import { SERMON_VIDEOS } from '@/lib/mockData';
+import { VideoModal } from '@/components/VideoModal';
+import { getVideos, type ManagedVideo } from '@/lib/contentManager';
 import { User, Mail, LogOut, Settings, History, Bookmark, Heart } from 'lucide-react';
 
 type ProfileTab = 'profile' | 'history' | 'saved' | 'donations';
@@ -14,6 +15,7 @@ type ProfileTab = 'profile' | 'history' | 'saved' | 'donations';
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<ManagedVideo | null>(null);
   const [profile, setProfile] = useState({
     name: 'John Doe',
     email: 'john@example.com',
@@ -21,9 +23,16 @@ export default function ProfilePage() {
     location: 'New York, NY',
     joinDate: '2023-01-15',
   });
+  
+  // Load videos from content manager
+  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  
+  useEffect(() => {
+    setVideos(getVideos());
+  }, []);
 
-  const watchHistory = SERMON_VIDEOS.slice(0, 4);
-  const savedContent = SERMON_VIDEOS.slice(2, 6);
+  const watchHistory = videos.slice(0, 4);
+  const savedContent = videos.slice(2, 6);
   const donations = [
     { id: 1, amount: 50, type: 'Offering', date: '2024-02-15', description: 'Sunday Service' },
     { id: 2, amount: 100, type: 'Tithe', date: '2024-02-12', description: 'Monthly Tithe' },
@@ -187,7 +196,7 @@ export default function ProfilePage() {
                 {watchHistory.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                     {watchHistory.map((video) => (
-                      <VideoCard key={video.id} video={video} />
+                      <VideoCard key={video.id} video={video} onPlay={() => setSelectedVideo(video)} />
                     ))}
                   </div>
                 ) : (
@@ -206,7 +215,7 @@ export default function ProfilePage() {
                 {savedContent.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                     {savedContent.map((video) => (
-                      <VideoCard key={video.id} video={video} />
+                      <VideoCard key={video.id} video={video} onPlay={() => setSelectedVideo(video)} />
                     ))}
                   </div>
                 ) : (
@@ -279,6 +288,13 @@ export default function ProfilePage() {
       </main>
 
       <Footer />
+
+      {/* Video Modal */}
+      <VideoModal
+        video={selectedVideo}
+        isOpen={!!selectedVideo}
+        onClose={() => setSelectedVideo(null)}
+      />
     </div>
   );
 }

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { VideoCard } from '@/components/VideoCard';
-import { CATEGORIES, SERMON_VIDEOS } from '@/lib/mockData';
+import { VideoModal } from '@/components/VideoModal';
+import { CATEGORIES } from '@/lib/mockData';
+import { getVideos, type ManagedVideo } from '@/lib/contentManager';
 import { Video } from '@/lib/types';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -15,13 +17,22 @@ export default function CategoryDetailPage() {
   const params = useParams();
   const categoryId = params.id as string;
   const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
+  const [selectedVideo, setSelectedVideo] = useState<ManagedVideo | null>(null);
+  
+  // Load videos from content manager
+  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  
+  useEffect(() => {
+    setVideos(getVideos());
+  }, []);
 
   // Find the category
   const category = CATEGORIES.find((cat) => cat.id === categoryId);
 
   // Filter videos by category
-  const categoryVideos = SERMON_VIDEOS.filter(
-    (video) => video.category.toLowerCase() === categoryId.toLowerCase()
+  const categoryVideos = useMemo(() => 
+    videos.filter((video) => video.category.toLowerCase() === categoryId.toLowerCase()),
+    [videos, categoryId]
   );
 
   const handleSaveItem = (video: Video) => {
@@ -97,7 +108,7 @@ export default function CategoryDetailPage() {
                 <VideoCard
                   key={video.id}
                   video={video}
-                  onPlay={() => console.log('Play', video.title)}
+                  onPlay={() => setSelectedVideo(video)}
                   onSave={handleSaveItem}
                 />
               ))}
@@ -149,6 +160,13 @@ export default function CategoryDetailPage() {
       </main>
 
       <Footer />
+
+      {/* Video Modal */}
+      <VideoModal
+        video={selectedVideo}
+        isOpen={!!selectedVideo}
+        onClose={() => setSelectedVideo(null)}
+      />
     </div>
   );
 }

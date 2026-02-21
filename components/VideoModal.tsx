@@ -6,19 +6,60 @@ import { Video } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 
+// Extended video type with YouTube support
+interface ExtendedVideo extends Video {
+  youtubeId?: string;
+  videoUrl?: string;
+}
+
 interface VideoModalProps {
-  video: Video | null;
+  video: ExtendedVideo | null;
   isOpen: boolean;
   onClose: () => void;
   relatedVideos?: Video[];
 }
 
+/**
+ * Extract YouTube video ID from various URL formats
+ */
+function extractYouTubeId(input: string): string | null {
+  if (!input) return null;
+  
+  // Already a video ID (11 characters, alphanumeric with - and _)
+  if (/^[\w-]{11}$/.test(input)) {
+    return input;
+  }
+  
+  // YouTube URL patterns
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([\w-]{11})/,
+    /youtube\.com\/shorts\/([\w-]{11})/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = input.match(pattern);
+    if (match) return match[1];
+  }
+  
+  return null;
+}
+
 export function VideoModal({ video, isOpen, onClose, relatedVideos = [] }: VideoModalProps) {
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Extract YouTube ID from youtubeId field or videoUrl
+  const youtubeId = video?.youtubeId 
+    ? extractYouTubeId(video.youtubeId) 
+    : video?.videoUrl 
+      ? extractYouTubeId(video.videoUrl) 
+      : null;
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') {
+      setIsPlaying(false);
+      onClose();
+    }
   }, [onClose]);
 
   useEffect(() => {
@@ -27,6 +68,7 @@ export function VideoModal({ video, isOpen, onClose, relatedVideos = [] }: Video
       window.addEventListener('keydown', handleKeyDown);
     } else {
       document.body.style.overflow = 'unset';
+      setIsPlaying(false); // Reset when modal closes
     }
 
     return () => {
@@ -34,6 +76,11 @@ export function VideoModal({ video, isOpen, onClose, relatedVideos = [] }: Video
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, handleKeyDown]);
+
+  // Reset playing state when video changes
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [video?.id]);
 
   if (!isOpen || !video) return null;
 
@@ -56,55 +103,91 @@ export function VideoModal({ video, isOpen, onClose, relatedVideos = [] }: Video
         <div className="bg-card rounded-xl overflow-hidden shadow-2xl">
           {/* Video Player Section */}
           <div className="relative aspect-video bg-black">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `url('${video.thumbnail}')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
+            {/* YouTube Embed - shown when playing and have youtubeId */}
+            {isPlaying && youtubeId ? (
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=${isMuted ? 1 : 0}&rel=0&modestbranding=1`}
+                title={video.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <>
+                {/* Thumbnail */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url('${video.thumbnail}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                />
             
-            {/* Play Button Overlay */}
-            {!isPlaying && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <Button
-                  size="lg"
-                  className="w-20 h-20 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50"
-                  onClick={() => setIsPlaying(true)}
-                >
-                  <Play className="w-10 h-10 text-white fill-current ml-1" />
-                </Button>
-              </div>
+                {/* Play Button Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  {youtubeId ? (
+                    <Button
+                      size="lg"
+                      className="w-20 h-20 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/50"
+                      onClick={() => setIsPlaying(true)}
+                    >
+                      <Play className="w-10 h-10 text-white fill-current ml-1" />
+                    </Button>
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-white/30 flex items-center justify-center mx-auto mb-3">
+                        <Play className="w-10 h-10 text-white/50 fill-current ml-1" />
+                      </div>
+                      <p className="text-white/60 text-sm">No video URL configured</p>
+                      <p className="text-white/40 text-xs mt-1">Add a YouTube link in Content Admin</p>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
-            {/* Gradient Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-card to-transparent" />
+            {/* Gradient Overlay - only show when not playing */}
+            {!isPlaying && (
+              <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-card to-transparent" />
+            )}
 
             {/* Close Button */}
             <button
-              onClick={onClose}
-              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+              onClick={() => {
+                setIsPlaying(false);
+                onClose();
+              }}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors z-10"
             >
               <X className="w-6 h-6" />
             </button>
 
-            {/* Volume Control */}
-            <button
-              onClick={() => setIsMuted(!isMuted)}
-              className="absolute bottom-20 right-4 w-10 h-10 rounded-full border border-white/40 flex items-center justify-center text-white/70 hover:text-white hover:border-white transition-colors"
-            >
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </button>
+            {/* Volume Control - only show when not playing (YouTube has its own) */}
+            {!isPlaying && youtubeId && (
+              <button
+                onClick={() => setIsMuted(!isMuted)}
+                className="absolute bottom-20 right-4 w-10 h-10 rounded-full border border-white/40 flex items-center justify-center text-white/70 hover:text-white hover:border-white transition-colors z-10"
+                title={isMuted ? "Video will start muted" : "Video will start with sound"}
+              >
+                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </button>
+            )}
           </div>
 
           {/* Content Details */}
           <div className="p-6 lg:p-8 space-y-6">
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3">
-              <Button size="lg" className="bg-white hover:bg-white/90 text-black font-bold gap-2">
+              <Button 
+                size="lg" 
+                className="bg-white hover:bg-white/90 text-black font-bold gap-2"
+                onClick={() => youtubeId && setIsPlaying(true)}
+                disabled={!youtubeId}
+              >
                 <Play className="w-5 h-5 fill-current" />
-                Play
+                {isPlaying ? 'Playing' : 'Play'}
               </Button>
               <Button
                 size="icon"

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { MobileNavBar } from '@/components/layout/MobileNavBar'
+import { AudioProvider } from '@/components/AudioProvider'
+import { MusicToggle } from '@/components/MusicToggle'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -34,10 +36,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" data-scroll-behavior="smooth">
       <body className="font-sans antialiased bg-background text-foreground pb-20 md:pb-0" suppressHydrationWarning>
-        {children}
-        <MobileNavBar />
+        <AudioProvider>
+          {children}
+          <MusicToggle />
+          <MobileNavBar />
+        </AudioProvider>
       </body>
     </html>
   )

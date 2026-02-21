@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { ContentRow } from '@/components/ContentRow';
 import { VideoModal } from '@/components/VideoModal';
-import { FEATURED_VIDEOS, CONTENT_ROWS, LIVE_SERVICES } from '@/lib/mockData';
+import { getVideos, getFeaturedVideos, type ManagedVideo } from '@/lib/contentManager';
 import { Video } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -15,6 +15,21 @@ import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  
+  // Load videos from content manager
+  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  
+  useEffect(() => {
+    setVideos(getVideos());
+  }, []);
+  
+  // Create content rows from videos
+  const featuredVideos = useMemo(() => videos.filter(v => v.isFeatured).slice(0, 5), [videos]);
+  const contentRows = useMemo(() => [
+    { title: 'Featured Messages', items: videos.filter(v => v.isFeatured).slice(0, 6) },
+    { title: 'Recent Sermons', items: videos.slice(0, 6) },
+    { title: 'Popular Teachings', items: [...videos].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 6) },
+  ], [videos]);
 
   const handlePlayVideo = (video: Video) => {
     setSelectedVideo(video);
@@ -30,7 +45,7 @@ export default function Home() {
 
       <main className="w-full">
         {/* Hero Carousel - Full Width */}
-        <HeroCarousel items={FEATURED_VIDEOS} onPlayVideo={handlePlayVideo} />
+        <HeroCarousel items={featuredVideos.length > 0 ? featuredVideos : videos.slice(0, 3)} onPlayVideo={handlePlayVideo} />
 
         {/* Content Rows */}
         <div className="relative z-10 space-y-4 md:space-y-6 lg:space-y-10 pb-20 md:pb-8 lg:pb-12 pt-4 md:pt-6 lg:pt-8">
@@ -61,8 +76,26 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Year of Agape Video */}
+          <div className="px-4 sm:px-6 lg:px-12">
+            <div className="max-w-4xl mx-auto">
+              <div className="relative rounded-xl overflow-hidden bg-black shadow-2xl">
+                <video
+                  className="w-full aspect-video object-contain"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                >
+                  <source src="/The Year Of AGAPE - 2026! (Video).mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            </div>
+          </div>
+
           {/* Content Rows */}
-          {CONTENT_ROWS.map((row, index) => (
+          {contentRows.map((row, index) => (
             <ContentRow
               key={index}
               title={row.title}
