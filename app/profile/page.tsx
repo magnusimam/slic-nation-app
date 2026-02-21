@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -9,37 +10,94 @@ import { VideoCard } from '@/components/VideoCard';
 import { VideoModal } from '@/components/VideoModal';
 import { getVideos, type ManagedVideo } from '@/lib/contentManager';
 import { User, Mail, LogOut, Settings, History, Bookmark, Heart } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { updateProfile } from '@/lib/supabase/profiles';
+import { getWatchHistory, getSavedItems } from '@/lib/supabase/userContent';
+import { getUserDonations } from '@/lib/supabase/donations';
+import { getVideos as getSupabaseVideos } from '@/lib/supabase/videos';
 
 type ProfileTab = 'profile' | 'history' | 'saved' | 'donations';
 
 export default function ProfilePage() {
+  const { user, profile: authProfile, loading: authLoading, signOut } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<ManagedVideo | null>(null);
   const [profile, setProfile] = useState({
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+1 (555) 123-4567',
-    location: 'New York, NY',
-    joinDate: '2023-01-15',
+    name: '',
+    email: '',
+    phone: '',
+    location: '',
+    joinDate: '',
   });
   
-  // Load videos from content manager
-  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  // Load data from Supabase
+  const [watchHistory, setWatchHistory] = useState<ManagedVideo[]>([]);
+  const [savedContent, setSavedContent] = useState<ManagedVideo[]>([]);
+  const [donations, setDonations] = useState<{id: string | number; amount: number; type: string; date: string; description: string}[]>([]);
   
+  // Redirect if not logged in
   useEffect(() => {
-    setVideos(getVideos());
-  }, []);
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
 
-  const watchHistory = videos.slice(0, 4);
-  const savedContent = videos.slice(2, 6);
-  const donations = [
-    { id: 1, amount: 50, type: 'Offering', date: '2024-02-15', description: 'Sunday Service' },
-    { id: 2, amount: 100, type: 'Tithe', date: '2024-02-12', description: 'Monthly Tithe' },
-    { id: 3, amount: 25, type: 'Offering', date: '2024-02-10', description: 'Special Project' },
-  ];
+  // Populate profile from auth
+  useEffect(() => {
+    if (user && authProfile) {
+      setProfile({
+        name: authProfile.display_name || user.user_metadata?.full_name || '',
+        email: user.email || '',
+        phone: authProfile.phone || '',
+        location: authProfile.location || '',
+        joinDate: user.created_at || '',
+      });
+    }
+  }, [user, authProfile]);
 
-  const handleSaveProfile = () => {
+  // Load watch history, saved items, donations
+  useEffect(() => {
+    if (!user) return;
+    async function loadUserData() {
+      try {
+        // Watch history
+        const history = await getWatchHistory(user!.id);
+        setWatchHistory(history.map(h => h.video).filter(Boolean) as ManagedVideo[]);
+      } catch { /* fallback: empty */ }
+      try {
+        // Saved items (videos)
+        const saved = await getSavedItems(user!.id, 'video');
+        setSavedContent(saved.map(s => s.video).filter(Boolean) as ManagedVideo[]);
+      } catch { /* fallback: empty */ }
+      try {
+        // Donations
+        const donData = await getUserDonations(user!.id);
+        setDonations(donData.map(d => ({
+          id: d.id,
+          amount: d.amount,
+          type: d.type,
+          date: d.created_at,
+          description: d.message || d.type,
+        })));
+      } catch { /* fallback: empty */ }
+    }
+    loadUserData();
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (user) {
+      try {
+        await updateProfile(user.id, {
+          display_name: profile.name,
+          phone: profile.phone,
+          location: profile.location,
+        });
+      } catch (err) {
+        console.error('Failed to update profile:', err);
+      }
+    }
     setIsEditing(false);
   };
 
@@ -98,7 +156,7 @@ export default function ProfilePage() {
                 ))}
               </nav>
 
-              <Button variant="outline" className="w-full text-foreground border-border gap-2 text-sm hidden lg:flex">
+              <Button variant="outline" className="w-full text-foreground border-border gap-2 text-sm hidden lg:flex" onClick={() => signOut()}>
                 <LogOut className="w-4 h-4" />
                 Sign Out
               </Button>

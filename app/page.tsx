@@ -6,7 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { ContentRow } from '@/components/ContentRow';
 import { VideoModal } from '@/components/VideoModal';
-import { getVideos, getFeaturedVideos, type ManagedVideo } from '@/lib/contentManager';
+import { getVideos as getSupabaseVideos, getFeaturedVideos as getSupabaseFeatured } from '@/lib/supabase/videos';
 import { Video } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -16,11 +16,21 @@ import { Button } from '@/components/ui/button';
 export default function Home() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   
-  // Load videos from content manager
-  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  // Load videos from Supabase
+  const [videos, setVideos] = useState<(Video & { isFeatured?: boolean })[]>([]);
   
   useEffect(() => {
-    setVideos(getVideos());
+    async function loadVideos() {
+      try {
+        const data = await getSupabaseVideos();
+        setVideos(data);
+      } catch {
+        // Fallback: try localStorage contentManager
+        const { getVideos } = await import('@/lib/contentManager');
+        setVideos(getVideos());
+      }
+    }
+    loadVideos();
   }, []);
   
   // Create content rows from videos

@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { CATEGORIES, CONTINUE_WATCHING } from '@/lib/mockData';
+import { CONTINUE_WATCHING } from '@/lib/mockData';
+import { getCategories as getSupabaseCategories } from '@/lib/supabase/categories';
 import { Category, ContinueWatchingItem } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,11 +38,26 @@ export default function CategoriesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Load categories from Supabase
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const data = await getSupabaseCategories();
+        setCategories(data);
+      } catch {
+        const { CATEGORIES } = await import('@/lib/mockData');
+        setCategories(CATEGORIES);
+      }
+    }
+    loadCategories();
+  }, []);
 
   // Featured categories (trending or new)
   const featuredCategories = useMemo(() => 
-    CATEGORIES.filter(cat => cat.isTrending || cat.isNew),
-    []
+    categories.filter(cat => cat.isTrending || cat.isNew),
+    [categories]
   );
 
   // Auto-rotate featured category
@@ -54,7 +70,7 @@ export default function CategoriesPage() {
 
   // Filter and sort categories
   const filteredCategories = useMemo(() => {
-    let result = [...CATEGORIES];
+    let result = [...categories];
     
     // Search filter
     if (searchQuery) {
@@ -87,7 +103,7 @@ export default function CategoriesPage() {
     }
     
     return result;
-  }, [searchQuery, sortBy]);
+  }, [categories, searchQuery, sortBy]);
 
   const currentFeatured = featuredCategories[featuredIndex];
 
@@ -210,7 +226,7 @@ export default function CategoriesPage() {
 
         {/* Trending Categories Banner */}
         {(() => {
-          const trendingCategories = CATEGORIES.filter(c => c.isTrending);
+          const trendingCategories = categories.filter(c => c.isTrending);
           if (trendingCategories.length === 0) return null;
           return (
             <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-8">
@@ -339,7 +355,7 @@ export default function CategoriesPage() {
               <CategorySection
                 title="Most Popular"
                 icon={<TrendingUp className="w-5 h-5 text-orange-500" />}
-                categories={CATEGORIES.filter(c => c.isTrending)}
+                categories={categories.filter(c => c.isTrending)}
                 hoveredCategory={hoveredCategory}
                 setHoveredCategory={setHoveredCategory}
                 formatDate={formatDate}
@@ -351,7 +367,7 @@ export default function CategoriesPage() {
               <CategorySection
                 title="New Arrivals"
                 icon={<Sparkles className="w-5 h-5 text-green-500" />}
-                categories={CATEGORIES.filter(c => c.isNew)}
+                categories={categories.filter(c => c.isNew)}
                 hoveredCategory={hoveredCategory}
                 setHoveredCategory={setHoveredCategory}
                 formatDate={formatDate}
@@ -363,7 +379,7 @@ export default function CategoriesPage() {
               <CategorySection
                 title="Browse All Categories"
                 icon={<Grid3X3 className="w-5 h-5 text-primary" />}
-                categories={CATEGORIES}
+                categories={categories}
                 hoveredCategory={hoveredCategory}
                 setHoveredCategory={setHoveredCategory}
                 formatDate={formatDate}
@@ -428,7 +444,7 @@ export default function CategoriesPage() {
                   <Grid3X3 className="w-6 h-6 text-primary" />
                 </div>
                 <p className="text-2xl md:text-3xl font-bold text-primary mb-1">
-                  {CATEGORIES.length}
+                  {categories.length}
                 </p>
                 <p className="text-sm text-foreground/70">Categories</p>
               </div>
@@ -437,7 +453,7 @@ export default function CategoriesPage() {
                   <Play className="w-6 h-6 text-blue-500" />
                 </div>
                 <p className="text-2xl md:text-3xl font-bold text-blue-500 mb-1">
-                  {CATEGORIES.reduce((sum, cat) => sum + cat.videoCount, 0)}
+                  {categories.reduce((sum, cat) => sum + cat.videoCount, 0)}
                 </p>
                 <p className="text-sm text-foreground/70">Total Videos</p>
               </div>

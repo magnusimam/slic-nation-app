@@ -6,9 +6,10 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { VideoCard } from '@/components/VideoCard';
 import { VideoModal } from '@/components/VideoModal';
-import { CATEGORIES } from '@/lib/mockData';
+import { getVideos as getSupabaseVideos } from '@/lib/supabase/videos';
+import { getCategories as getSupabaseCategories } from '@/lib/supabase/categories';
 import { getVideos, type ManagedVideo } from '@/lib/contentManager';
-import { Video } from '@/lib/types';
+import { Video, Category } from '@/lib/types';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -19,15 +20,27 @@ export default function CategoryDetailPage() {
   const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
   const [selectedVideo, setSelectedVideo] = useState<ManagedVideo | null>(null);
   
-  // Load videos from content manager
+  // Load videos from Supabase with fallback
   const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   
   useEffect(() => {
-    setVideos(getVideos());
+    async function loadData() {
+      try {
+        const [vData, cData] = await Promise.all([getSupabaseVideos(), getSupabaseCategories()]);
+        setVideos(vData as ManagedVideo[]);
+        setCategories(cData);
+      } catch {
+        setVideos(getVideos());
+        const { CATEGORIES } = await import('@/lib/mockData');
+        setCategories(CATEGORIES);
+      }
+    }
+    loadData();
   }, []);
 
   // Find the category
-  const category = CATEGORIES.find((cat) => cat.id === categoryId);
+  const category = categories.find((cat) => cat.id === categoryId);
 
   // Filter videos by category
   const categoryVideos = useMemo(() => 
@@ -132,7 +145,7 @@ export default function CategoryDetailPage() {
         <div className="mt-16 pt-12 border-t border-border">
           <h3 className="text-2xl font-bold text-foreground mb-8">More to Explore</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {CATEGORIES.filter((cat) => cat.id !== categoryId)
+            {categories.filter((cat) => cat.id !== categoryId)
               .slice(0, 4)
               .map((cat) => (
                 <Link

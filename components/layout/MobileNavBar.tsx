@@ -3,16 +3,18 @@
 import Link from 'next/link';
 import { Home, Play, BookOpen, Radio, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 export function MobileNavBar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const navItems = [
     { href: '/', icon: Home, label: 'Home' },
     { href: '/categories', icon: Play, label: 'Watch' },
     { href: '/books', icon: BookOpen, label: 'Books' },
     { href: '/live', icon: Radio, label: 'Live' },
-    { href: '/login', icon: User, label: 'Login' },
+    { href: user ? '/profile' : '/login', icon: User, label: user ? 'Profile' : 'Login' },
   ];
 
   return (

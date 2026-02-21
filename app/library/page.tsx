@@ -6,7 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { VideoCard } from '@/components/VideoCard';
 import { VideoModal } from '@/components/VideoModal';
 import { CATEGORY_OPTIONS, SPEAKERS } from '@/lib/mockData';
-import { getVideos, type ManagedVideo } from '@/lib/contentManager';
+import { getVideos as getSupabaseVideos } from '@/lib/supabase/videos';
 import { Video } from '@/lib/types';
 import { Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,13 +25,22 @@ export default function LibraryPage() {
   const [selectedSpeaker, setSelectedSpeaker] = useState('All Speakers');
   const [savedItems, setSavedItems] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<ManagedVideo | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   
-  // Load videos from content manager
-  const [videos, setVideos] = useState<ManagedVideo[]>([]);
+  // Load videos from Supabase
+  const [videos, setVideos] = useState<Video[]>([]);
   
   useEffect(() => {
-    setVideos(getVideos());
+    async function loadVideos() {
+      try {
+        const data = await getSupabaseVideos();
+        setVideos(data);
+      } catch {
+        const { getVideos } = await import('@/lib/contentManager');
+        setVideos(getVideos());
+      }
+    }
+    loadVideos();
   }, []);
 
   const filteredVideos = useMemo(() => {

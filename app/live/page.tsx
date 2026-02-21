@@ -13,6 +13,8 @@ import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { BankTransferDetails } from '@/components/BankTransferDetails';
 import { streamConfig as defaultStreamConfig } from '@/lib/streamConfig';
 import { getStreamConfig } from '@/lib/streamConfigManager';
+import { getStreamConfig as getSupabaseStreamConfig } from '@/lib/supabase/streamConfig';
+import { getRecurringServices as getSupabaseRecurring } from '@/lib/supabase/services';
 import { useYouTubeLive } from '@/hooks/useYouTubeLive';
 import { Users, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -97,8 +99,24 @@ export default function LivePage() {
 
   // Load admin-created schedules + live stream config on mount
   useEffect(() => {
-    // Refresh config from localStorage (in case admin updated it)
-    setStreamConfig(getStreamConfig());
+    // Refresh config from Supabase (with localStorage fallback)
+    async function loadConfig() {
+      try {
+        const cfg = await getSupabaseStreamConfig();
+        setStreamConfig({
+          ...defaultStreamConfig,
+          platform: cfg.platform || defaultStreamConfig.platform,
+          youtubeVideoId: cfg.youtube_video_id || cfg.youtubeVideoId || '',
+          youtubeLiveChannelId: cfg.youtube_live_channel_id || cfg.youtubeLiveChannelId || '',
+          facebookVideoUrl: cfg.facebook_video_url || cfg.facebookVideoUrl || '',
+          isLive: cfg.is_live ?? cfg.isLive ?? false,
+          chat: cfg.chat || defaultStreamConfig.chat,
+        });
+      } catch {
+        setStreamConfig(getStreamConfig());
+      }
+    }
+    loadConfig();
 
     // Refresh schedule on mount
     refreshSchedule();

@@ -8,8 +8,8 @@
  */
 
 export const CLOUDINARY_CONFIG = {
-  cloudName: 'dckgjhlsq',
-  apiKey: '657885322772846',
+  cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dckgjhlsq',
+  apiKey: process.env.CLOUDINARY_API_KEY || '657885322772846',
   uploadPreset: 'slic_nations', // Optional: Create this preset in Cloudinary dashboard as "unsigned"
   folder: 'slic-nations',
 };

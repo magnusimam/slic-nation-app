@@ -8,10 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BankTransferDetails } from '@/components/BankTransferDetails';
 import { Heart, Check } from 'lucide-react';
+import { createDonation } from '@/lib/supabase/donations';
+import { useAuth } from '@/hooks/useAuth';
 
 type DonationType = 'tithe' | 'offering' | 'partnership';
 
 export default function DonatePage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<DonationType>('offering');
   const [amount, setAmount] = useState('');
   const [customAmount, setCustomAmount] = useState('');
@@ -19,6 +22,7 @@ export default function DonatePage() {
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const predefinedAmounts = ['10', '25', '50', '100', '250', '500'];
 
@@ -42,8 +46,24 @@ export default function DonatePage() {
 
   const currentTab = tabContent[activeTab];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await createDonation({
+        user_id: user?.id,
+        type: activeTab,
+        amount: parseFloat(finalAmount),
+        currency: 'USD',
+        donor_name: name || undefined,
+        donor_email: email || undefined,
+        message: message || undefined,
+        status: 'pending',
+      });
+    } catch (err) {
+      console.error('Failed to save donation:', err);
+    }
+    setIsSubmitting(false);
     setIsSubmitted(true);
     setTimeout(() => {
       setIsSubmitted(false);
@@ -172,11 +192,11 @@ export default function DonatePage() {
                   {/* Submit Button */}
                   <Button
                     onClick={handleSubmit}
-                    disabled={!finalAmount}
+                    disabled={!finalAmount || isSubmitting}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-base font-semibold gap-2"
                   >
                     <Heart className="w-5 h-5" />
-                    Proceed to Payment - ${finalAmount || '0'}
+                    {isSubmitting ? 'Processing...' : `Proceed to Payment - $${finalAmount || '0'}`}
                   </Button>
 
                   <p className="text-xs text-foreground/60 text-center">

@@ -62,6 +62,20 @@ import {
   DEFAULT_RECURRING_SERVICES,
   type RecurringService,
 } from '@/lib/recurringSchedules';
+import {
+  getStreamConfig as getSupabaseStreamConfig,
+  saveStreamConfig as saveSupabaseStreamConfig,
+} from '@/lib/supabase/streamConfig';
+import {
+  getRecurringServices as getSupabaseRecurring,
+  addRecurringService as addSupabaseRecurring,
+  updateRecurringService as updateSupabaseRecurring,
+  deleteRecurringService as deleteSupabaseRecurring,
+  getScheduledServices as getSupabaseSchedules,
+  addScheduledService as addSupabaseSchedule,
+  updateScheduledService as updateSupabaseSchedule,
+  deleteScheduledService as deleteSupabaseSchedule,
+} from '@/lib/supabase/services';
 
 export default function StreamSettingsPage() {
   const [platform, setPlatform] = useState<StreamPlatform>('youtube');
@@ -108,33 +122,52 @@ export default function StreamSettingsPage() {
   const [recurringSpeaker, setRecurringSpeaker] = useState('Apst Emmanuel Etim');
   const [recurringThumbnail, setRecurringThumbnail] = useState('');
 
-  // Load saved stream config + schedules from localStorage on mount
+  // Load saved stream config + schedules
   useEffect(() => {
-    const savedConfig = getStreamConfig();
-    setPlatform(savedConfig.platform);
-    setIsLive(savedConfig.isLive);
-    setYoutubeChannelId(savedConfig.youtubeLiveChannelId || '');
-    setFacebookUrl(savedConfig.facebookVideoUrl || '');
-    // Pre-fill the video ID input if saved
-    if (savedConfig.youtubeVideoId) {
-      setYoutubeInput(savedConfig.youtubeVideoId);
+    async function loadAll() {
+      // Load stream config
+      let savedConfig;
+      try {
+        savedConfig = await getSupabaseStreamConfig();
+      } catch {
+        savedConfig = getStreamConfig();
+      }
+      setPlatform(savedConfig.platform || 'youtube');
+      setIsLive(savedConfig.isLive || false);
+      setYoutubeChannelId(savedConfig.youtubeLiveChannelId || savedConfig.youtube_live_channel_id || '');
+      setFacebookUrl(savedConfig.facebookVideoUrl || savedConfig.facebook_video_url || '');
+      if (savedConfig.youtubeVideoId || savedConfig.youtube_video_id) {
+        setYoutubeInput(savedConfig.youtubeVideoId || savedConfig.youtube_video_id || '');
+      }
+      const chat = savedConfig.chat || defaultChatConfig;
+      setChatEnabled(chat.enabled);
+      setChatSource(chat.source);
+      setChatApprovalMode(chat.approvalMode);
+      setShowViewerCount(chat.showViewerCount);
+      setAllowGuestComments(chat.allowGuestComments);
+      setSlowModeSeconds(chat.slowModeSeconds);
+      setMaxMessageLength(chat.maxMessageLength);
+      setBlockedWordsInput(chat.blockedWords?.join(', ') || '');
+      setWelcomeMessage(chat.welcomeMessage || '');
+      setConfigLoaded(true);
+
+      // Load schedules
+      try {
+        const sData = await getSupabaseSchedules();
+        setSchedules(sData as unknown as ScheduledService[]);
+      } catch {
+        setSchedules(getSchedules());
+      }
+      
+      // Load recurring services
+      try {
+        const rData = await getSupabaseRecurring();
+        setRecurringServices(rData as unknown as RecurringService[]);
+      } catch {
+        setRecurringServices(getRecurringServices());
+      }
     }
-    
-    // Load chat settings
-    const chat = savedConfig.chat || defaultChatConfig;
-    setChatEnabled(chat.enabled);
-    setChatSource(chat.source);
-    setChatApprovalMode(chat.approvalMode);
-    setShowViewerCount(chat.showViewerCount);
-    setAllowGuestComments(chat.allowGuestComments);
-    setSlowModeSeconds(chat.slowModeSeconds);
-    setMaxMessageLength(chat.maxMessageLength);
-    setBlockedWordsInput(chat.blockedWords?.join(', ') || '');
-    setWelcomeMessage(chat.welcomeMessage || '');
-    
-    setConfigLoaded(true);
-    setSchedules(getSchedules());
-    setRecurringServices(getRecurringServices());
+    loadAll();
   }, []);
 
   const resetForm = () => {
@@ -163,32 +196,41 @@ export default function StreamSettingsPage() {
     setShowRecurringForm(false);
   };
 
-  const handleAddRecurring = () => {
+  const handleAddRecurring = async () => {
     if (!recurringTitle || !recurringTime) return;
     
     const thumbnail = recurringThumbnail || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=450&fit=crop';
     
-    if (editingRecurringId) {
-      updateRecurringService(editingRecurringId, {
-        title: recurringTitle,
-        dayOfWeek: recurringDayOfWeek,
-        time: recurringTime,
-        durationHours: recurringDuration,
-        speaker: recurringSpeaker,
-        thumbnail,
-      });
-    } else {
-      addRecurringService({
-        title: recurringTitle,
-        dayOfWeek: recurringDayOfWeek,
-        time: recurringTime,
-        durationHours: recurringDuration,
-        speaker: recurringSpeaker,
-        thumbnail,
-      });
+    try {
+      if (editingRecurringId) {
+        await updateSupabaseRecurring(editingRecurringId, {
+          title: recurringTitle,
+          dayOfWeek: recurringDayOfWeek,
+          time: recurringTime,
+          durationHours: recurringDuration,
+          speaker: recurringSpeaker,
+          thumbnail,
+        });
+      } else {
+        await addSupabaseRecurring({
+          title: recurringTitle,
+          dayOfWeek: recurringDayOfWeek,
+          time: recurringTime,
+          durationHours: recurringDuration,
+          speaker: recurringSpeaker,
+          thumbnail,
+        });
+      }
+      const rData = await getSupabaseRecurring();
+      setRecurringServices(rData as unknown as RecurringService[]);
+    } catch {
+      if (editingRecurringId) {
+        updateRecurringService(editingRecurringId, { title: recurringTitle, dayOfWeek: recurringDayOfWeek, time: recurringTime, durationHours: recurringDuration, speaker: recurringSpeaker, thumbnail });
+      } else {
+        addRecurringService({ title: recurringTitle, dayOfWeek: recurringDayOfWeek, time: recurringTime, durationHours: recurringDuration, speaker: recurringSpeaker, thumbnail });
+      }
+      setRecurringServices(getRecurringServices());
     }
-    
-    setRecurringServices(getRecurringServices());
     resetRecurringForm();
   };
 
@@ -203,12 +245,18 @@ export default function StreamSettingsPage() {
     setShowRecurringForm(true);
   };
 
-  const handleDeleteRecurring = (id: string) => {
-    deleteRecurringService(id);
-    setRecurringServices(getRecurringServices());
+  const handleDeleteRecurring = async (id: string) => {
+    try {
+      await deleteSupabaseRecurring(id);
+      const rData = await getSupabaseRecurring();
+      setRecurringServices(rData as unknown as RecurringService[]);
+    } catch {
+      deleteRecurringService(id);
+      setRecurringServices(getRecurringServices());
+    }
   };
 
-  const handleResetToDefaults = () => {
+  const handleResetToDefaults = async () => {
     resetToDefaultServices();
     setRecurringServices(getRecurringServices());
   };
@@ -220,35 +268,44 @@ export default function StreamSettingsPage() {
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
     if (!formTitle || !formDate || !formTime) return;
     
     const thumbnail = formThumbnail || 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=450&fit=crop';
     
-    if (editingId) {
-      updateSchedule(editingId, {
-        title: formTitle,
-        date: formDate,
-        time: formTime,
-        speaker: formSpeaker,
-        description: formDescription,
-        isSpecial: formIsSpecial,
-        thumbnail,
-      });
-    } else {
-      addSchedule({
-        title: formTitle,
-        date: formDate,
-        time: formTime,
-        speaker: formSpeaker,
-        description: formDescription,
-        isSpecial: formIsSpecial,
-        isLive: false,
-        thumbnail,
-      });
+    try {
+      if (editingId) {
+        await updateSupabaseSchedule(editingId, {
+          title: formTitle,
+          date: formDate,
+          time: formTime,
+          speaker: formSpeaker,
+          description: formDescription,
+          isSpecial: formIsSpecial,
+          thumbnail,
+        });
+      } else {
+        await addSupabaseSchedule({
+          title: formTitle,
+          date: formDate,
+          time: formTime,
+          speaker: formSpeaker,
+          description: formDescription,
+          isSpecial: formIsSpecial,
+          isLive: false,
+          thumbnail,
+        });
+      }
+      const sData = await getSupabaseSchedules();
+      setSchedules(sData as unknown as ScheduledService[]);
+    } catch {
+      if (editingId) {
+        updateSchedule(editingId, { title: formTitle, date: formDate, time: formTime, speaker: formSpeaker, description: formDescription, isSpecial: formIsSpecial, thumbnail });
+      } else {
+        addSchedule({ title: formTitle, date: formDate, time: formTime, speaker: formSpeaker, description: formDescription, isSpecial: formIsSpecial, isLive: false, thumbnail });
+      }
+      setSchedules(getSchedules());
     }
-    
-    setSchedules(getSchedules());
     resetForm();
   };
 
@@ -264,9 +321,15 @@ export default function StreamSettingsPage() {
     setShowAddForm(true);
   };
 
-  const handleDeleteSchedule = (id: string) => {
-    deleteSchedule(id);
-    setSchedules(getSchedules());
+  const handleDeleteSchedule = async (id: string) => {
+    try {
+      await deleteSupabaseSchedule(id);
+      const sData = await getSupabaseSchedules();
+      setSchedules(sData as unknown as ScheduledService[]);
+    } catch {
+      deleteSchedule(id);
+      setSchedules(getSchedules());
+    }
   };
 
   const getServiceStatus = (date: string, time: string) => {
@@ -296,32 +359,56 @@ export default function StreamSettingsPage() {
     welcomeMessage,
   });
 
-  // Save stream config to localStorage — applies instantly to the live page
-  const handleSave = () => {
-    saveStreamConfig({
+  // Save stream config — applies instantly to the live page
+  const handleSave = async () => {
+    const config = {
       platform,
       youtubeVideoId: platform === 'youtube' ? youtubeVideoId : '',
       youtubeLiveChannelId: platform === 'youtube' ? youtubeChannelId : '',
       facebookVideoUrl: platform === 'facebook' ? facebookUrl : '',
       isLive,
       chat: getChatConfig(),
-    });
+    };
+    try {
+      await saveSupabaseStreamConfig({
+        platform,
+        youtube_video_id: config.youtubeVideoId,
+        youtube_live_channel_id: config.youtubeLiveChannelId,
+        facebook_video_url: config.facebookVideoUrl,
+        is_live: isLive,
+        chat: getChatConfig() as any,
+      });
+    } catch {
+      saveStreamConfig(config);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
   // Auto-save live toggle immediately
-  const handleToggleLive = () => {
+  const handleToggleLive = async () => {
     const newLive = !isLive;
     setIsLive(newLive);
-    saveStreamConfig({
+    const config = {
       platform,
       youtubeVideoId: platform === 'youtube' ? youtubeVideoId : '',
       youtubeLiveChannelId: platform === 'youtube' ? youtubeChannelId : '',
       facebookVideoUrl: platform === 'facebook' ? facebookUrl : '',
       isLive: newLive,
       chat: getChatConfig(),
-    });
+    };
+    try {
+      await saveSupabaseStreamConfig({
+        platform,
+        youtube_video_id: config.youtubeVideoId,
+        youtube_live_channel_id: config.youtubeLiveChannelId,
+        facebook_video_url: config.facebookVideoUrl,
+        is_live: newLive,
+        chat: getChatConfig() as any,
+      });
+    } catch {
+      saveStreamConfig(config);
+    }
   };
 
   return (

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { signIn } from '@/lib/supabase/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,14 +14,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate login - replace with actual auth logic
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    setError('');
+    
+    const { error: authError } = await signIn(email, password);
+    
+    if (authError) {
+      setError(authError.message);
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(false);
     router.push('/');
+    router.refresh();
   };
 
   return (
@@ -108,6 +119,13 @@ export default function LoginPage() {
             >
               Login
             </h2>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm text-center">
+                {error}
+              </div>
+            )}
 
             {/* Email Input */}
             <div className="relative mb-6 sm:mb-8">

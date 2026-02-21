@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, Search, User, Bell, X } from 'lucide-react';
+import { Menu, Search, User, Bell, X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   transparent?: boolean;
@@ -14,6 +15,7 @@ export function Header({ transparent = false }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const { user, profile, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -104,16 +106,41 @@ export function Header({ transparent = false }: HeaderProps) {
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
             </Button>
 
-            {/* Profile */}
-            <Link 
-              href="/login"
-              className="hidden sm:flex items-center text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-md px-3 py-2 transition-colors"
-            >
-              <div className="w-7 h-7 rounded bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
+            {/* Profile / Auth */}
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link 
+                  href="/profile"
+                  className="flex items-center text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-md px-3 py-2 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
+                    {profile?.avatar_url ? (
+                      <Image src={profile.avatar_url} alt="" width={28} height={28} className="w-full h-full rounded object-cover" />
+                    ) : (
+                      <User className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                  <span className="hidden lg:inline text-sm font-medium">{profile?.name || 'Profile'}</span>
+                </Link>
+                <button
+                  onClick={() => signOut()}
+                  className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
-              <span className="hidden lg:inline text-sm font-medium">Login</span>
-            </Link>
+            ) : (
+              <Link 
+                href="/login"
+                className="hidden sm:flex items-center text-white/80 hover:text-white hover:bg-white/10 gap-2 rounded-md px-3 py-2 transition-colors"
+              >
+                <div className="w-7 h-7 rounded bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <span className="hidden lg:inline text-sm font-medium">Login</span>
+              </Link>
+            )}
 
             {/* Mobile Menu Button */}
             <button

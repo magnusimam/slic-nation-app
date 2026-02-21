@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Eye, EyeOff, User, Check, X } from 'lucide-react';
+import { signUp } from '@/lib/supabase/auth';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function SignupPage() {
   });
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const passwordRequirements = [
     { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
@@ -29,13 +32,24 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
     setIsLoading(true);
-    // Simulate signup - replace with actual auth logic
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    setError('');
+    
+    const { error: authError } = await signUp(formData.email, formData.password, formData.name);
+    
+    if (authError) {
+      setError(authError.message);
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(false);
-    router.push('/login');
+    setSuccess(true);
+    // Redirect to login after brief delay
+    setTimeout(() => router.push('/login'), 2000);
   };
 
   const updateFormData = (field: string, value: string) => {
@@ -128,6 +142,20 @@ export default function SignupPage() {
             >
               Create Account
             </h2>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm text-center">
+                {error}
+              </div>
+            )}
+
+            {/* Success Message */}
+            {success && (
+              <div className="mb-4 p-3 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-sm text-center">
+                Account created! Check your email to confirm. Redirecting to login...
+              </div>
+            )}
 
             {/* Name Input */}
             <div className="relative mb-5 sm:mb-6">

@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { AnimatedBooksSlider } from '@/components/AnimatedBooksSlider';
 import { BookCard } from '@/components/BookCard';
-import { getBooks, type ManagedBook } from '@/lib/contentManager';
+import { getBooks as getSupabaseBooks } from '@/lib/supabase/books';
 import { Book } from '@/lib/types';
 import { Search, BookOpen, Download, Mail, Sparkles, TrendingUp, ChevronRight, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -19,11 +19,20 @@ export default function BooksPage() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   
-  // Load books from content manager
-  const [books, setBooks] = useState<ManagedBook[]>([]);
+  // Load books from Supabase
+  const [books, setBooks] = useState<(Book & { downloadUrl?: string | null; sortOrder?: number; createdAt?: string; updatedAt?: string })[]>([]);
   
   useEffect(() => {
-    setBooks(getBooks());
+    async function loadBooks() {
+      try {
+        const data = await getSupabaseBooks();
+        setBooks(data);
+      } catch {
+        const { getBooks } = await import('@/lib/contentManager');
+        setBooks(getBooks());
+      }
+    }
+    loadBooks();
   }, []);
 
   // Curated collections

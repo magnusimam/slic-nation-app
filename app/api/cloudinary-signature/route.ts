@@ -8,9 +8,9 @@ import crypto from 'crypto';
  * Use this for signed uploads when you don't have an unsigned upload preset.
  */
 
-const CLOUD_NAME = 'dckgjhlsq';
-const API_KEY = '657885322772846';
-const API_SECRET = 'ybvD8noZp1_msXQfXi8rpXitZYs';
+const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dckgjhlsq';
+const API_KEY = process.env.CLOUDINARY_API_KEY || '657885322772846';
+const API_SECRET = process.env.CLOUDINARY_API_SECRET || 'ybvD8noZp1_msXQfXi8rpXitZYs';
 
 export async function POST(request: NextRequest) {
   try {

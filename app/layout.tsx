@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { MobileNavBar } from '@/components/layout/MobileNavBar'
 import { AudioProvider } from '@/components/AudioProvider'
+import { AuthProvider } from '@/hooks/useAuth'
 import { MusicToggle } from '@/components/MusicToggle'
 import './globals.css'
 
@@ -38,11 +39,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" data-scroll-behavior="smooth">
       <body className="font-sans antialiased bg-background text-foreground pb-20 md:pb-0" suppressHydrationWarning>
-        <AudioProvider>
-          {children}
-          <MusicToggle />
-          <MobileNavBar />
-        </AudioProvider>
+        <AuthProvider>
+          <AudioProvider>
+            {children}
+            <MusicToggle />
+            <MobileNavBar />
+          </AudioProvider>
+        </AuthProvider>
       </body>
     </html>
   )

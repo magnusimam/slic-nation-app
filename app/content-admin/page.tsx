@@ -51,6 +51,18 @@ import {
   type ManagedVideo,
   type ManagedBook,
 } from '@/lib/contentManager';
+import {
+  getVideos as getSupabaseVideos,
+  addVideo as addSupabaseVideo,
+  updateVideo as updateSupabaseVideo,
+  deleteVideo as deleteSupabaseVideo,
+} from '@/lib/supabase/videos';
+import {
+  getBooks as getSupabaseBooks,
+  addBook as addSupabaseBook,
+  updateBook as updateSupabaseBook,
+  deleteBook as deleteSupabaseBook,
+} from '@/lib/supabase/books';
 
 type ContentTab = 'videos' | 'books';
 type ViewMode = 'grid' | 'list';
@@ -100,9 +112,19 @@ export default function ContentManagementPage() {
   const [bookIsFeatured, setBookIsFeatured] = useState(false);
   
   // Load content on mount
+  const loadContent = async () => {
+    try {
+      const [v, b] = await Promise.all([getSupabaseVideos(), getSupabaseBooks()]);
+      setVideos(v as ManagedVideo[]);
+      setBooks(b as ManagedBook[]);
+    } catch {
+      setVideos(getVideos());
+      setBooks(getBooks());
+    }
+  };
+
   useEffect(() => {
-    setVideos(getVideos());
-    setBooks(getBooks());
+    loadContent();
   }, []);
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -125,45 +147,54 @@ export default function ContentManagementPage() {
     setShowVideoForm(false);
   };
   
-  const handleAddVideo = () => {
+  const handleAddVideo = async () => {
     if (!videoTitle) return;
     
     const thumbnail = videoThumbnail || 
       (videoYoutubeId ? `https://img.youtube.com/vi/${videoYoutubeId}/maxresdefault.jpg` : 
       'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=450&fit=crop');
     
-    if (editingVideoId) {
-      updateVideo(editingVideoId, {
-        title: videoTitle,
-        description: videoDescription,
-        speaker: videoSpeaker,
-        thumbnail,
-        youtubeId: videoYoutubeId,
-        videoUrl,
-        duration: videoDuration,
-        category: videoCategory,
-        series: videoSeries,
-        date: videoDate,
-        isFeatured: videoIsFeatured,
-      });
-    } else {
-      addVideo({
-        title: videoTitle,
-        description: videoDescription,
-        speaker: videoSpeaker,
-        thumbnail,
-        youtubeId: videoYoutubeId,
-        videoUrl,
-        duration: videoDuration,
-        category: videoCategory,
-        series: videoSeries,
-        date: videoDate,
-        isFeatured: videoIsFeatured,
-        views: 0,
-      });
+    try {
+      if (editingVideoId) {
+        await updateSupabaseVideo(editingVideoId, {
+          title: videoTitle,
+          description: videoDescription,
+          speaker: videoSpeaker,
+          thumbnail,
+          youtubeId: videoYoutubeId,
+          videoUrl,
+          duration: videoDuration,
+          category: videoCategory,
+          series: videoSeries,
+          date: videoDate,
+          isFeatured: videoIsFeatured,
+        });
+      } else {
+        await addSupabaseVideo({
+          title: videoTitle,
+          description: videoDescription,
+          speaker: videoSpeaker,
+          thumbnail,
+          youtubeId: videoYoutubeId,
+          videoUrl,
+          duration: videoDuration,
+          category: videoCategory,
+          series: videoSeries,
+          date: videoDate,
+          isFeatured: videoIsFeatured,
+          views: 0,
+        });
+      }
+    } catch {
+      // Fallback to localStorage
+      if (editingVideoId) {
+        updateVideo(editingVideoId, { title: videoTitle, description: videoDescription, speaker: videoSpeaker, thumbnail, youtubeId: videoYoutubeId, videoUrl, duration: videoDuration, category: videoCategory, series: videoSeries, date: videoDate, isFeatured: videoIsFeatured });
+      } else {
+        addVideo({ title: videoTitle, description: videoDescription, speaker: videoSpeaker, thumbnail, youtubeId: videoYoutubeId, videoUrl, duration: videoDuration, category: videoCategory, series: videoSeries, date: videoDate, isFeatured: videoIsFeatured, views: 0 });
+      }
     }
     
-    setVideos(getVideos());
+    await loadContent();
     resetVideoForm();
   };
   
@@ -183,16 +214,24 @@ export default function ContentManagementPage() {
     setShowVideoForm(true);
   };
   
-  const handleDeleteVideo = (id: string) => {
+  const handleDeleteVideo = async (id: string) => {
     if (confirm('Are you sure you want to delete this video?')) {
-      deleteVideo(id);
-      setVideos(getVideos());
+      try {
+        await deleteSupabaseVideo(id);
+      } catch {
+        deleteVideo(id);
+      }
+      await loadContent();
     }
   };
   
-  const handleToggleVideoFeatured = (video: ManagedVideo) => {
-    updateVideo(video.id, { isFeatured: !video.isFeatured });
-    setVideos(getVideos());
+  const handleToggleVideoFeatured = async (video: ManagedVideo) => {
+    try {
+      await updateSupabaseVideo(video.id, { isFeatured: !video.isFeatured });
+    } catch {
+      updateVideo(video.id, { isFeatured: !video.isFeatured });
+    }
+    await loadContent();
   };
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -213,39 +252,47 @@ export default function ContentManagementPage() {
     setShowBookForm(false);
   };
   
-  const handleAddBook = () => {
+  const handleAddBook = async () => {
     if (!bookTitle) return;
     
     const cover = bookCover || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=600&fit=crop';
     
-    if (editingBookId) {
-      updateBook(editingBookId, {
-        title: bookTitle,
-        description: bookDescription,
-        author: bookAuthor,
-        cover,
-        downloadUrl: bookDownloadUrl,
-        category: bookCategory,
-        pages: bookPages,
-        year: bookYear,
-        isFeatured: bookIsFeatured,
-      });
-    } else {
-      addBook({
-        title: bookTitle,
-        description: bookDescription,
-        author: bookAuthor,
-        cover,
-        downloadUrl: bookDownloadUrl,
-        category: bookCategory,
-        pages: bookPages,
-        year: bookYear,
-        isFeatured: bookIsFeatured,
-        downloads: 0,
-      });
+    try {
+      if (editingBookId) {
+        await updateSupabaseBook(editingBookId, {
+          title: bookTitle,
+          description: bookDescription,
+          author: bookAuthor,
+          cover,
+          downloadUrl: bookDownloadUrl,
+          category: bookCategory,
+          pages: bookPages,
+          year: bookYear,
+          isFeatured: bookIsFeatured,
+        });
+      } else {
+        await addSupabaseBook({
+          title: bookTitle,
+          description: bookDescription,
+          author: bookAuthor,
+          cover,
+          downloadUrl: bookDownloadUrl,
+          category: bookCategory,
+          pages: bookPages,
+          year: bookYear,
+          isFeatured: bookIsFeatured,
+          downloads: 0,
+        });
+      }
+    } catch {
+      if (editingBookId) {
+        updateBook(editingBookId, { title: bookTitle, description: bookDescription, author: bookAuthor, cover, downloadUrl: bookDownloadUrl, category: bookCategory, pages: bookPages, year: bookYear, isFeatured: bookIsFeatured });
+      } else {
+        addBook({ title: bookTitle, description: bookDescription, author: bookAuthor, cover, downloadUrl: bookDownloadUrl, category: bookCategory, pages: bookPages, year: bookYear, isFeatured: bookIsFeatured, downloads: 0 });
+      }
     }
     
-    setBooks(getBooks());
+    await loadContent();
     resetBookForm();
   };
   
@@ -263,16 +310,24 @@ export default function ContentManagementPage() {
     setShowBookForm(true);
   };
   
-  const handleDeleteBook = (id: string) => {
+  const handleDeleteBook = async (id: string) => {
     if (confirm('Are you sure you want to delete this book?')) {
-      deleteBook(id);
-      setBooks(getBooks());
+      try {
+        await deleteSupabaseBook(id);
+      } catch {
+        deleteBook(id);
+      }
+      await loadContent();
     }
   };
   
-  const handleToggleBookFeatured = (book: ManagedBook) => {
-    updateBook(book.id, { isFeatured: !book.isFeatured });
-    setBooks(getBooks());
+  const handleToggleBookFeatured = async (book: ManagedBook) => {
+    try {
+      await updateSupabaseBook(book.id, { isFeatured: !book.isFeatured });
+    } catch {
+      updateBook(book.id, { isFeatured: !book.isFeatured });
+    }
+    await loadContent();
   };
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -937,7 +992,7 @@ export default function ContentManagementPage() {
         {/* Info Note */}
         <div className="mt-8 p-4 rounded-lg bg-muted/50 border border-border space-y-3">
           <p className="text-sm text-foreground/70">
-            <strong>Note:</strong> Content is stored in your browser&apos;s localStorage. For videos, paste YouTube URLs or video IDs. 
+            <strong>Note:</strong> Content is managed via Supabase. For videos, paste YouTube URLs or video IDs. 
             For books, use external links (Google Drive, Dropbox) for the download URL. 
             The frontend will display content added here.
           </p>
@@ -945,11 +1000,10 @@ export default function ContentManagementPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
+              onClick={async () => {
                 if (confirm('This will reset all videos and books to the original placeholders. Are you sure?')) {
                   resetToDefaultContent();
-                  setVideos(getVideos());
-                  setBooks(getBooks());
+                  await loadContent();
                 }
               }}
               className="text-foreground/70"
