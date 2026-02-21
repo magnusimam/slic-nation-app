@@ -124,7 +124,13 @@ export async function findLiveStream(channelId: string): Promise<YouTubeSearchRe
     });
 
     const res = await fetch(`${BASE_URL}/search?${params}`);
-    if (!res.ok) throw new Error(`YouTube API error: ${res.status}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      const reason = errorData?.error?.errors?.[0]?.reason || res.status;
+      console.error(`YouTube search API error: ${reason}`);
+      // Throw so callers can distinguish "no live stream" from "API error"
+      throw new Error(`YouTube API error: ${reason}`);
+    }
 
     const data = await res.json();
     if (!data.items?.length) return null;

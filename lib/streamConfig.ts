@@ -1,46 +1,46 @@
-import { StreamConfig } from './types';
+import { StreamConfig, ChatConfig } from './types';
 
 /**
- * SLIC Nations Live Stream Configuration
+ * SLIC Nations Live Stream Configuration — Default Values
  * 
- * HOW TO USE:
+ * These defaults are used as fallbacks. The actual config is managed
+ * from the Admin Settings page (/stream-settings) and stored in localStorage.
  * 
- * 1. YouTube Live:
- *    - Go to YouTube Studio → Go Live → Copy the stream URL
- *    - Your stream URL looks like: https://youtube.com/watch?v=XXXXXXX
- *    - Set youtubeVideoId to "XXXXXXX" (the part after v=)
- *    - Set platform to 'youtube'
- *    - Set isLive to true when you're streaming
- * 
- * 2. Facebook Live:
- *    - Go to Facebook → Live Video → Start streaming from OBS
- *    - Copy the video URL (e.g., https://www.facebook.com/yourpage/videos/123456)
- *    - Set facebookVideoUrl to the full URL
- *    - Set platform to 'facebook'
- *    - Set isLive to true when you're streaming
- * 
- * OBS Settings:
- *    YouTube: Settings → Stream → Service: YouTube → Paste Stream Key
- *    Facebook: Settings → Stream → Service: Facebook Live → Paste Stream Key
+ * To go live:
+ *   1. Go to /stream-settings
+ *   2. Set your YouTube Video ID or Facebook URL
+ *   3. Toggle "Stream Status" to LIVE
+ *   4. Click "Save & Apply Settings"
+ *   5. The /live page will update automatically
  */
 
+// Default chat configuration
+export const defaultChatConfig: ChatConfig = {
+  enabled: true,
+  source: 'youtube-embed',  // Recommended: embeds native YouTube chat (no API quota)
+  approvalMode: 'auto',
+  showViewerCount: true,
+  allowGuestComments: false,
+  slowModeSeconds: 0,
+  maxMessageLength: 500,
+  blockedWords: [],
+  welcomeMessage: 'Welcome to the live service! 🙏 Feel free to share your prayers and comments.',
+};
+
 export const streamConfig: StreamConfig = {
-  // Change to 'youtube' or 'facebook' when ready to stream
+  // Default platform
   platform: 'youtube',
   
-  // YouTube: paste your video/stream ID here (overrides auto-detect)
-  // Example: for https://youtube.com/watch?v=dQw4w9WgXcQ → use 'dQw4w9WgXcQ'
+  // YouTube video ID — set via Admin Settings page (/stream-settings)
   youtubeVideoId: '',
   
-  // Your YouTube channel ID for auto-detecting live streams
-  // Set via NEXT_PUBLIC_YOUTUBE_CHANNEL_ID env variable, or hardcode here
+  // YouTube channel ID for auto-detecting live streams
   youtubeLiveChannelId: process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_ID || '',
   
-  // Facebook: paste full video URL here
-  // Example: 'https://www.facebook.com/SLICNations/videos/123456789'
+  // Facebook video URL — set via Admin Settings page
   facebookVideoUrl: '',
   
-  // When true, forces the player to show as live (auto-detect overrides this when YouTube API is configured)
+  // Live status — controlled from Admin Settings page
   isLive: false,
   
   // Override stream title (leave empty to auto-pull from YouTube)
@@ -48,6 +48,9 @@ export const streamConfig: StreamConfig = {
   
   // Fallback thumbnail when offline
   fallbackThumbnail: 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=1280&h=720&fit=crop',
+  
+  // Live chat configuration
+  chat: defaultChatConfig,
 };
 
 /**

@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
+import { MobileNavBar } from '@/components/layout/MobileNavBar';
 import { Footer } from '@/components/layout/Footer';
 import { LIVE_SERVICES } from '@/lib/mockData';
+import { getUpcomingServices, getNextService } from '@/lib/scheduleManager';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
-import { streamConfig } from '@/lib/streamConfig';
+import { streamConfig as defaultStreamConfig } from '@/lib/streamConfig';
+import { getStreamConfig } from '@/lib/streamConfigManager';
 import { useYouTubeLive } from '@/hooks/useYouTubeLive';
 import { Users, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -83,8 +86,26 @@ const RECENT_REPLAYS = [
 ];
 
 export default function LivePage() {
-  const currentService = LIVE_SERVICES[0];
-  const upcomingServices = LIVE_SERVICES.slice(1);
+  // Get services from admin schedules, falling back to mock data
+  const [currentService, setCurrentService] = useState(LIVE_SERVICES[0]);
+  const [upcomingServices, setUpcomingServices] = useState(LIVE_SERVICES.slice(1));
+
+  // Load stream config from admin settings (localStorage)
+  // Initialize with default to avoid hydration mismatch (localStorage not available on server)
+  const [streamConfig, setStreamConfig] = useState(defaultStreamConfig);
+
+  // Load admin-created schedules + live stream config on mount
+  useEffect(() => {
+    // Refresh config from localStorage (in case admin updated it)
+    setStreamConfig(getStreamConfig());
+
+    const next = getNextService(LIVE_SERVICES);
+    if (next) setCurrentService(next);
+    
+    const upcoming = getUpcomingServices(LIVE_SERVICES);
+    // Skip the first one (it's the "current" service) and show the rest
+    setUpcomingServices(upcoming.slice(1));
+  }, []);
 
   // YouTube API auto-detect
   const {
@@ -106,7 +127,9 @@ export default function LivePage() {
   });
 
   // Derived: use YouTube data when available, fall back to mock
-  const effectiveIsLive = ytConfigured ? ytIsLive : streamConfig.isLive;
+  // Live if EITHER YouTube API detects a live stream OR manual config says live
+  // This ensures the stream shows when API has quota issues or errors
+  const effectiveIsLive = ytIsLive || streamConfig.isLive;
   const effectiveTitle = ytStream?.title || currentService.title;
   const effectiveDescription = ytStream?.description || '';
   const effectiveThumbnail = ytStream?.thumbnail || currentService.thumbnail;
@@ -309,18 +332,18 @@ END:VCALENDAR`;
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 pb-24 md:pb-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pb-28 md:pb-8">
         {/* Page Header with Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8">
-          <div className="space-y-1 md:space-y-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">Live Services</h1>
-            <p className="text-sm md:text-base text-foreground/70">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
+          <div className="space-y-0.5 sm:space-y-1 md:space-y-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">Live Services</h1>
+            <p className="text-xs sm:text-sm md:text-base text-foreground/70">
               Join us for live worship and teachings
             </p>
           </div>
           
           {/* Quick Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             {/* Set Reminder */}
             <Button
               variant={reminderSet ? "default" : "outline"}
@@ -454,15 +477,15 @@ END:VCALENDAR`;
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 lg:gap-8">
           {/* Main Player */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-4 md:space-y-6">
             {/* Live Stream Player */}
             <LiveStreamPlayer
               config={streamConfig}
               serviceThumbnail={effectiveThumbnail}
               autoDetectedVideoId={liveVideoId}
-              autoDetectedIsLive={ytConfigured ? ytIsLive : undefined}
+              autoDetectedIsLive={effectiveIsLive}
             />
 
             {/* YouTube Live Info Bar */}
@@ -496,7 +519,7 @@ END:VCALENDAR`;
 
             {/* Countdown Timer (when not live) */}
             {!effectiveIsLive && (
-              <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-black via-gray-900 to-black p-6 sm:p-8">
+              <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-black via-gray-900 to-black p-4 sm:p-6 md:p-8">
                 <div className="text-center space-y-4">
                   <Badge variant="outline" className="text-white/70 border-white/30">
                     <Radio className="w-3 h-3 mr-1.5" />
@@ -540,19 +563,19 @@ END:VCALENDAR`;
             )}
 
             {/* Service Details */}
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1 md:mb-2">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-start justify-between gap-2 sm:gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-0.5 sm:mb-1 md:mb-2 line-clamp-2">
                     {effectiveTitle}
                   </h2>
-                  <p className="text-sm md:text-base text-foreground/70">Led by {effectiveChannelTitle}</p>
+                  <p className="text-xs sm:text-sm md:text-base text-foreground/70">Led by {effectiveChannelTitle}</p>
                   {effectiveDescription && (
                     <p className="text-xs text-foreground/60 mt-2 line-clamp-3">{effectiveDescription}</p>
                   )}
                 </div>
                 {effectiveIsLive && (
-                  <Badge className="bg-red-600 hover:bg-red-600 flex-shrink-0 text-xs animate-pulse">
+                  <Badge className="bg-red-600 hover:bg-red-600 flex-shrink-0 text-[10px] sm:text-xs animate-pulse">
                     <Radio className="w-3 h-3 mr-1" />
                     LIVE
                   </Badge>
@@ -560,12 +583,12 @@ END:VCALENDAR`;
               </div>
 
               {/* Service Info */}
-              <div className="grid grid-cols-2 gap-3 md:gap-4 pt-4 border-t border-border">
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="text-xs text-foreground/70">Date</p>
-                    <p className="text-sm font-semibold text-foreground">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 pt-3 sm:pt-4 border-t border-border">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs text-foreground/70">Date</p>
+                    <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
                       {new Date(currentService.date).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
@@ -575,11 +598,11 @@ END:VCALENDAR`;
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                   <div>
-                    <p className="text-xs text-foreground/70">Time</p>
-                    <p className="text-sm font-semibold text-foreground">{currentService.time}</p>
+                    <p className="text-[10px] sm:text-xs text-foreground/70">Time</p>
+                    <p className="text-xs sm:text-sm font-semibold text-foreground">{currentService.time}</p>
                   </div>
                 </div>
               </div>
@@ -588,36 +611,36 @@ END:VCALENDAR`;
               <div className="bg-card rounded-lg border border-border overflow-hidden">
                 <button 
                   onClick={() => setShowNotes(!showNotes)}
-                  className="w-full p-4 md:p-6 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                  className="w-full p-3 sm:p-4 md:p-6 flex items-center justify-between hover:bg-muted/50 transition-colors gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-primary" />
-                    <h3 className="font-semibold text-foreground text-sm md:text-base">Sermon Outline</h3>
-                    <Badge variant="secondary" className="text-xs">{SERMON_OUTLINE.length} points</Badge>
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+                    <h3 className="font-semibold text-foreground text-xs sm:text-sm md:text-base truncate">Sermon Outline</h3>
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">{SERMON_OUTLINE.length} points</Badge>
                   </div>
-                  {showNotes ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  {showNotes ? <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />}
                 </button>
                 
                 {showNotes && (
-                  <div className="px-4 pb-4 md:px-6 md:pb-6 space-y-2">
+                  <div className="px-3 pb-3 sm:px-4 sm:pb-4 md:px-6 md:pb-6 space-y-1.5 sm:space-y-2">
                     {SERMON_OUTLINE.map((item) => (
                       <button
                         key={item.id}
                         onClick={() => setExpandedNoteId(expandedNoteId === item.id ? null : item.id)}
                         className="w-full text-left"
                       >
-                        <div className={`p-3 rounded-lg border transition-colors ${expandedNoteId === item.id ? 'bg-primary/10 border-primary/30' : 'bg-muted/50 border-transparent hover:bg-muted'}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">
+                        <div className={`p-2 sm:p-3 rounded-lg border transition-colors ${expandedNoteId === item.id ? 'bg-primary/10 border-primary/30' : 'bg-muted/50 border-transparent hover:bg-muted'}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-primary/20 text-primary text-[10px] sm:text-xs font-bold flex items-center justify-center flex-shrink-0">
                                 {item.id}
                               </span>
-                              <span className="text-sm font-medium text-foreground">{item.title}</span>
+                              <span className="text-xs sm:text-sm font-medium text-foreground truncate">{item.title}</span>
                             </div>
-                            <span className="text-xs text-foreground/50 font-mono">{item.time}</span>
+                            <span className="text-[10px] sm:text-xs text-foreground/50 font-mono flex-shrink-0">{item.time}</span>
                           </div>
                           {expandedNoteId === item.id && (
-                            <p className="mt-2 ml-9 text-sm text-foreground/70 animate-fade-in">
+                            <p className="mt-1.5 sm:mt-2 ml-7 sm:ml-9 text-xs sm:text-sm text-foreground/70 animate-fade-in">
                               {item.content}
                             </p>
                           )}
@@ -629,123 +652,189 @@ END:VCALENDAR`;
               </div>
 
               {/* Chat/Comments Section */}
-              <div className="bg-card rounded-lg p-4 md:p-6 border border-border">
-                <div className="flex items-center justify-between mb-3 md:mb-4">
-                  <h3 className="font-semibold text-foreground text-sm md:text-base">
-                    {ytChatMessages.length > 0 ? 'YouTube Live Chat' : 'Live Chat'}
+              {streamConfig.chat?.enabled !== false && (
+              <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border">
+                <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
+                  <h3 className="font-semibold text-foreground text-xs sm:text-sm md:text-base">
+                    {streamConfig.chat?.source === 'youtube-embed' ? 'YouTube Live Chat' :
+                     streamConfig.chat?.source === 'youtube' ? 'YouTube Live Chat' : 
+                     streamConfig.chat?.source === 'internal' ? 'Live Chat' : 
+                     ytChatMessages.length > 0 ? 'YouTube Live Chat' : 'Live Chat'}
                   </h3>
-                  <Badge variant="outline" className="text-xs">
-                    {ytChatMessages.length > 0 ? ytChatMessages.length : chatMessages.length} messages
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {streamConfig.chat?.showViewerCount !== false && effectiveViewerCount && (
+                      <Badge variant="secondary" className="text-[10px] sm:text-xs gap-1">
+                        <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                        {effectiveViewerCount.toLocaleString()}
+                      </Badge>
+                    )}
+                    {streamConfig.chat?.source !== 'youtube-embed' && (
+                      <Badge variant="outline" className="text-[10px] sm:text-xs">
+                        {ytChatMessages.length > 0 ? ytChatMessages.length : chatMessages.length} messages
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <div 
-                  ref={chatContainerRef}
-                  className="space-y-3 mb-4 h-48 md:h-64 overflow-y-auto border border-border rounded-lg p-3 md:p-4 scroll-smooth"
-                >
-                  {/* Show YouTube live chat when available */}
-                  {ytChatMessages.length > 0 ? (
-                    ytChatMessages.map((msg) => (
-                      <div key={msg.id} className="flex gap-2 animate-fade-in">
-                        {msg.authorAvatar ? (
-                          <img 
-                            src={msg.authorAvatar} 
-                            alt={msg.authorName}
-                            className="w-8 h-8 rounded-full shrink-0 object-cover"
-                          />
-                        ) : (
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                            msg.isOwner ? 'bg-primary text-primary-foreground' : msg.isModerator ? 'bg-blue-500/20 text-blue-500' : 'bg-muted text-foreground'
-                          }`}>
-                            {msg.authorName.charAt(0)}
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-semibold ${msg.isOwner ? 'text-primary' : msg.isModerator ? 'text-blue-500' : 'text-foreground'}`}>
-                              {msg.authorName}
-                            </span>
-                            {msg.isOwner && (
-                              <Badge className="text-[10px] h-4 bg-primary/20 text-primary border-0">OWNER</Badge>
-                            )}
-                            {msg.isModerator && !msg.isOwner && (
-                              <Badge className="text-[10px] h-4 bg-blue-500/20 text-blue-500 border-0">MOD</Badge>
-                            )}
-                            {msg.isMember && (
-                              <Badge className="text-[10px] h-4 bg-green-500/20 text-green-500 border-0">MEMBER</Badge>
-                            )}
-                            <span className="text-[10px] text-foreground/50">
-                              {new Date(msg.publishedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                            </span>
-                          </div>
-                          <p className="text-sm text-foreground/90 mt-0.5">{msg.message}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    /* Fallback to mock chat */
-                    chatMessages.map((msg: any) => (
-                    <div 
-                      key={msg.id} 
-                      className={`flex gap-2 ${msg.isNew ? 'animate-fade-in' : ''} ${msg.isMe ? 'flex-row-reverse' : ''}`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                        msg.isHost 
-                          ? 'bg-primary text-primary-foreground' 
-                          : msg.isMe 
-                            ? 'bg-green-500/20 text-green-500' 
-                            : 'bg-muted text-foreground'
-                      }`}>
-                        {msg.user.charAt(0)}
-                      </div>
-                      <div className={`flex-1 ${msg.isMe ? 'text-right' : ''}`}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-xs font-semibold ${msg.isMe ? 'text-green-500' : msg.isHost ? 'text-primary' : 'text-foreground'}`}>
-                            {msg.user}
-                          </span>
-                          {msg.isHost && (
-                            <Badge className="text-[10px] h-4 bg-primary/20 text-primary border-0">HOST</Badge>
-                          )}
-                          <span className="text-[10px] text-foreground/50">{msg.time}</span>
-                        </div>
-                        <p className={`text-sm text-foreground/90 mt-0.5 ${msg.isMe ? 'bg-green-500/10 inline-block px-2 py-1 rounded-lg' : ''}`}>
-                          {msg.message}
-                        </p>
-                      </div>
+                
+                {/* YouTube Embed Chat - Direct iframe embed */}
+                {streamConfig.chat?.source === 'youtube-embed' && streamConfig.youtubeVideoId ? (
+                  <div className="space-y-2">
+                    <div className="rounded-lg overflow-hidden border border-border bg-[#0f0f0f]">
+                      <iframe
+                        src={`https://www.youtube.com/live_chat?v=${streamConfig.youtubeVideoId}&is_popout=1`}
+                        className="w-full h-[280px] sm:h-[350px] md:h-[400px] bg-[#0f0f0f]"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      />
                     </div>
-                  ))
-                  )}
-                </div>
-                <form onSubmit={handleSendChat} className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Type your message..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    className="flex-1 bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder:text-foreground/50 outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <Button type="submit" className="bg-primary hover:bg-primary/90">
-                    Send
-                  </Button>
-                </form>
+                    {/* Fallback link if embed doesn't work */}
+                    <div className="flex items-center justify-center gap-2">
+                      <a 
+                        href={`https://www.youtube.com/live_chat?v=${streamConfig.youtubeVideoId}&is_popout=1`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        Open chat in new window ↗
+                      </a>
+                      <span className="text-foreground/30">|</span>
+                      <a 
+                        href={`https://www.youtube.com/watch?v=${streamConfig.youtubeVideoId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-red-500 hover:underline flex items-center gap-1"
+                      >
+                        Watch on YouTube ↗
+                      </a>
+                    </div>
+                  </div>
+                ) : streamConfig.chat?.source === 'youtube-embed' ? (
+                  <div className="rounded-lg border border-border p-8 text-center">
+                    <p className="text-sm text-foreground/70">YouTube Video ID required for embedded chat</p>
+                    <p className="text-xs text-foreground/50 mt-1">Configure it in Stream Settings</p>
+                  </div>
+                ) : (
+                  /* Internal/API Chat */
+                  <>
+                    {/* Welcome Message */}
+                    {streamConfig.chat?.welcomeMessage && (
+                      <div className="mb-2 sm:mb-3 px-2 sm:px-3 py-1.5 sm:py-2 bg-primary/10 border border-primary/20 rounded-lg">
+                        <p className="text-[10px] sm:text-xs text-foreground/80">{streamConfig.chat.welcomeMessage}</p>
+                      </div>
+                    )}
+                    
+                    <div 
+                      ref={chatContainerRef}
+                      className="space-y-2 sm:space-y-3 mb-3 sm:mb-4 h-36 sm:h-48 md:h-64 overflow-y-auto border border-border rounded-lg p-2 sm:p-3 md:p-4 scroll-smooth"
+                    >
+                      {/* Show YouTube live chat when available and source allows */}
+                      {(streamConfig.chat?.source !== 'internal') && ytChatMessages.length > 0 ? (
+                        ytChatMessages.map((msg) => (
+                          <div key={msg.id} className="flex gap-1.5 sm:gap-2 animate-fade-in">
+                            {msg.authorAvatar ? (
+                              <img 
+                                src={msg.authorAvatar} 
+                                alt={msg.authorName}
+                                className="w-6 h-6 sm:w-8 sm:h-8 rounded-full shrink-0 object-cover"
+                              />
+                            ) : (
+                              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
+                                msg.isOwner ? 'bg-primary text-primary-foreground' : msg.isModerator ? 'bg-blue-500/20 text-blue-500' : 'bg-muted text-foreground'
+                              }`}>
+                                {msg.authorName.charAt(0)}
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <span className={`text-[10px] sm:text-xs font-semibold ${msg.isOwner ? 'text-primary' : msg.isModerator ? 'text-blue-500' : 'text-foreground'}`}>
+                                  {msg.authorName}
+                                </span>
+                                {msg.isOwner && (
+                                  <Badge className="text-[10px] h-4 bg-primary/20 text-primary border-0">OWNER</Badge>
+                                )}
+                                {msg.isModerator && !msg.isOwner && (
+                                  <Badge className="text-[10px] h-4 bg-blue-500/20 text-blue-500 border-0">MOD</Badge>
+                                )}
+                                {msg.isMember && (
+                                  <Badge className="text-[10px] h-4 bg-green-500/20 text-green-500 border-0">MEMBER</Badge>
+                                )}
+                                <span className="text-[8px] sm:text-[10px] text-foreground/50">
+                                  {new Date(msg.publishedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-xs sm:text-sm text-foreground/90 mt-0.5">{msg.message}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        /* Fallback to internal chat */
+                        chatMessages.map((msg: any) => (
+                        <div 
+                          key={msg.id} 
+                          className={`flex gap-1.5 sm:gap-2 ${msg.isNew ? 'animate-fade-in' : ''} ${msg.isMe ? 'flex-row-reverse' : ''}`}
+                        >
+                          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0 ${
+                            msg.isHost 
+                              ? 'bg-primary text-primary-foreground' 
+                              : msg.isMe 
+                                ? 'bg-green-500/20 text-green-500' 
+                                : 'bg-muted text-foreground'
+                          }`}>
+                            {msg.user.charAt(0)}
+                          </div>
+                          <div className={`flex-1 ${msg.isMe ? 'text-right' : ''}`}>
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                              <span className={`text-[10px] sm:text-xs font-semibold ${msg.isMe ? 'text-green-500' : msg.isHost ? 'text-primary' : 'text-foreground'}`}>
+                                {msg.user}
+                              </span>
+                              {msg.isHost && (
+                                <Badge className="text-[10px] h-4 bg-primary/20 text-primary border-0">HOST</Badge>
+                              )}
+                              <span className="text-[8px] sm:text-[10px] text-foreground/50">{msg.time}</span>
+                            </div>
+                            <p className={`text-xs sm:text-sm text-foreground/90 mt-0.5 ${msg.isMe ? 'bg-green-500/10 inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg' : ''}`}>
+                              {msg.message}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                      )}
+                    </div>
+                    <form onSubmit={handleSendChat} className="flex gap-1.5 sm:gap-2">
+                      <input
+                        type="text"
+                        placeholder="Type a message..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        maxLength={streamConfig.chat?.maxMessageLength || 500}
+                        className="flex-1 min-w-0 bg-muted border border-border rounded-lg px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground placeholder:text-foreground/50 outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <Button type="submit" size="sm" className="bg-primary hover:bg-primary/90 text-xs sm:text-sm px-2.5 sm:px-4 flex-shrink-0">
+                        Send
+                      </Button>
+                    </form>
+                  </>
+                )}
               </div>
+              )}
 
               {/* Calendar Sync */}
-              <div className="bg-card rounded-lg p-4 md:p-6 border border-border">
-                <h3 className="font-semibold text-foreground mb-3 text-sm md:text-base flex items-center gap-2">
-                  <CalendarPlus className="w-4 h-4" />
+              <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border">
+                <h3 className="font-semibold text-foreground mb-2 sm:mb-3 text-xs sm:text-sm md:text-base flex items-center gap-1.5 sm:gap-2">
+                  <CalendarPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   Add to Calendar
                 </h3>
-                <p className="text-xs text-foreground/70 mb-3">
+                <p className="text-[10px] sm:text-xs text-foreground/70 mb-2 sm:mb-3">
                   Never miss a service! Add to your calendar to get reminders.
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={addToGoogleCalendar}
-                    className="text-xs"
+                    className="text-[10px] sm:text-xs h-8 sm:h-9"
                   >
-                    <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19.5 22h-15A2.5 2.5 0 012 19.5v-15A2.5 2.5 0 014.5 2H8v2H4.5a.5.5 0 00-.5.5v15a.5.5 0 00.5.5h15a.5.5 0 00.5-.5V8h2v11.5a2.5 2.5 0 01-2.5 2.5z"/>
                       <path d="M15 2h7v7h-2V4.414l-7.293 7.293-1.414-1.414L18.586 3H15V2z"/>
                     </svg>
@@ -755,9 +844,9 @@ END:VCALENDAR`;
                     variant="outline" 
                     size="sm" 
                     onClick={addToAppleCalendar}
-                    className="text-xs"
+                    className="text-[10px] sm:text-xs h-8 sm:h-9"
                   >
-                    <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                     </svg>
                     Apple
@@ -766,24 +855,24 @@ END:VCALENDAR`;
               </div>
 
               {/* Give/Offering Button */}
-              <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-background rounded-lg p-4 md:p-6 border border-primary/30">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Gift className="w-5 h-5 text-primary" />
+              <div className="bg-gradient-to-br from-primary/20 via-primary/10 to-background rounded-lg p-3 sm:p-4 md:p-6 border border-primary/30">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Gift className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground text-sm md:text-base">Support the Ministry</h3>
-                    <p className="text-xs text-foreground/70">Your giving makes a difference</p>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-foreground text-xs sm:text-sm md:text-base">Support the Ministry</h3>
+                    <p className="text-[10px] sm:text-xs text-foreground/70 truncate">Your giving makes a difference</p>
                   </div>
                 </div>
-                <p className="text-xs text-foreground/70 mb-4">
+                <p className="text-[10px] sm:text-xs text-foreground/70 mb-2 sm:mb-4 hidden sm:block">
                   Partner with us to spread the gospel and impact lives across nations.
                 </p>
                 <Button 
-                  className="w-full bg-primary hover:bg-primary/90 gap-2" 
+                  className="w-full bg-primary hover:bg-primary/90 gap-1.5 sm:gap-2 text-xs sm:text-sm h-8 sm:h-10" 
                   onClick={() => window.location.href = '/donate'}
                 >
-                  <Gift className="w-4 h-4" />
+                  <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   Give Now
                 </Button>
               </div>
@@ -791,40 +880,40 @@ END:VCALENDAR`;
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-4 md:space-y-6">
+          <div className="space-y-3 sm:space-y-4 md:space-y-6">
             {/* Upcoming Services */}
-            <div className="bg-card rounded-lg p-4 md:p-6 border border-border space-y-3 md:space-y-4">
-              <h3 className="font-semibold text-foreground text-base md:text-lg">Upcoming Services</h3>
-              <div className="space-y-3">
+            <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border space-y-2 sm:space-y-3 md:space-y-4">
+              <h3 className="font-semibold text-foreground text-sm sm:text-base md:text-lg">Upcoming Services</h3>
+              <div className="space-y-2 sm:space-y-3">
                 {upcomingServices.map((service) => (
                   <button
                     key={service.id}
-                    className="w-full text-left p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors group"
+                    className="w-full text-left p-2 sm:p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors group"
                   >
-                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                    <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                       {service.title}
                     </p>
-                    <p className="text-xs text-foreground/70 mt-1">
+                    <p className="text-[10px] sm:text-xs text-foreground/70 mt-0.5 sm:mt-1">
                       {new Date(service.date).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                       })}{' '}
                       at {service.time}
                     </p>
-                    <p className="text-xs text-foreground/70 mt-1">{service.speaker}</p>
+                    <p className="text-[10px] sm:text-xs text-foreground/70 mt-0.5 sm:mt-1">{service.speaker}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Recent Replays */}
-            <div className="bg-card rounded-lg p-4 md:p-6 border border-border space-y-3 md:space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
-                  <PlayCircle className="w-5 h-5 text-primary" />
+            <div className="bg-card rounded-lg p-3 sm:p-4 md:p-6 border border-border space-y-2 sm:space-y-3 md:space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-foreground text-sm sm:text-base md:text-lg flex items-center gap-1.5 sm:gap-2">
+                  <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                   Recent Replays
                 </h3>
-                <Button variant="ghost" size="sm" className="text-xs text-primary hover:text-primary/80">
+                <Button variant="ghost" size="sm" className="text-[10px] sm:text-xs text-primary hover:text-primary/80 h-7 sm:h-8 px-2 sm:px-3">
                   View All
                 </Button>
               </div>
@@ -962,6 +1051,7 @@ END:VCALENDAR`;
       </Dialog>
 
       <Footer />
+      <MobileNavBar />
     </div>
   );
 }

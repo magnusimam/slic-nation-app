@@ -89,6 +89,20 @@ export interface ContinueWatchingItem {
 
 // Live Streaming Types
 export type StreamPlatform = 'youtube' | 'facebook' | 'none';
+export type ChatSource = 'youtube' | 'youtube-embed' | 'internal' | 'both';
+export type ChatApprovalMode = 'auto' | 'manual';
+
+export interface ChatConfig {
+  enabled: boolean;                    // Enable/disable chat completely
+  source: ChatSource;                  // Where to pull chat from
+  approvalMode: ChatApprovalMode;      // Auto-approve or manual moderation
+  showViewerCount: boolean;            // Show number of viewers
+  allowGuestComments: boolean;         // Allow non-logged-in users to comment
+  slowModeSeconds: number;             // Delay between messages (0 = off)
+  maxMessageLength: number;            // Max characters per message
+  blockedWords: string[];              // Words to auto-filter
+  welcomeMessage?: string;             // Message shown when user joins chat
+}
 
 export interface StreamConfig {
   platform: StreamPlatform;
@@ -98,4 +112,5 @@ export interface StreamConfig {
   isLive: boolean;               // Manual override for live status
   title?: string;                // Stream title override
   fallbackThumbnail?: string;    // Thumbnail when offline
+  chat: ChatConfig;              // Live chat/comments configuration
 }
