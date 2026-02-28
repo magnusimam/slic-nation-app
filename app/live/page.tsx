@@ -14,7 +14,8 @@ import { BankTransferDetails } from '@/components/BankTransferDetails';
 import { streamConfig as defaultStreamConfig } from '@/lib/streamConfig';
 import { getStreamConfig } from '@/lib/streamConfigManager';
 import { getStreamConfig as getSupabaseStreamConfig } from '@/lib/supabase/streamConfig';
-import { getRecurringServices as getSupabaseRecurring } from '@/lib/supabase/services';
+import { getRecurringServices as getSupabaseRecurring, getUpcomingScheduledServices, scheduledToService } from '@/lib/supabase/services';
+import type { Service } from '@/lib/types';
 import { useYouTubeLive } from '@/hooks/useYouTubeLive';
 import { Users, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -76,8 +77,8 @@ const RECENT_REPLAYS = [
 
 export default function LivePage() {
   // Dynamic service schedule - auto-calculates next service based on current date/time
-  const [currentService, setCurrentService] = useState(() => getNextUpcomingService());
-  const [upcomingServices, setUpcomingServices] = useState(() => {
+  const [currentService, setCurrentService] = useState<Service>(() => getNextUpcomingService());
+  const [upcomingServices, setUpcomingServices] = useState<Service[]>(() => {
     const all = getServicesForWeeks(4);
     return all.slice(1); // Skip the current/next service
   });
@@ -86,15 +87,53 @@ export default function LivePage() {
   // Initialize with default to avoid hydration mismatch (localStorage not available on server)
   const [streamConfig, setStreamConfig] = useState(defaultStreamConfig);
 
-  // Function to refresh schedule (called on mount and when countdown reaches zero)
-  const refreshSchedule = useCallback(() => {
-    const nextService = getNextUpcomingService();
-    setCurrentService(nextService);
-    
-    const allServices = getServicesForWeeks(4);
-    // Filter out the current service and show upcoming ones
-    const upcoming = allServices.filter(s => s.id !== nextService.id);
-    setUpcomingServices(upcoming);
+  // Function to refresh schedule - now includes Supabase scheduled services
+  const refreshSchedule = useCallback(async () => {
+    try {
+      // Get recurring services (next occurrences)
+      const recurringServices = getServicesForWeeks(4);
+      
+      // Get one-time scheduled services from Supabase
+      let scheduledServices: Service[] = [];
+      try {
+        const scheduled = await getUpcomingScheduledServices();
+        scheduledServices = scheduled.map(scheduledToService);
+        console.log('[Live] Loaded scheduled services:', scheduledServices.length);
+      } catch (err) {
+        console.warn('[Live] Failed to load scheduled services:', err);
+      }
+      
+      // Merge and sort all services by date/time
+      const allServices = [...recurringServices, ...scheduledServices].sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      // Find the next upcoming service (first one that hasn't ended yet)
+      const now = new Date();
+      const nextService = allServices.find(s => {
+        const serviceStart = new Date(`${s.date}T${s.time}`);
+        // Consider a 3-hour window for "live" services
+        const serviceEnd = new Date(serviceStart.getTime() + 3 * 60 * 60 * 1000);
+        return serviceEnd > now;
+      }) || getNextUpcomingService();
+      
+      setCurrentService(nextService);
+      
+      // Show remaining upcoming services (excluding current)
+      const upcoming = allServices.filter(s => s.id !== nextService.id);
+      setUpcomingServices(upcoming.slice(0, 10)); // Limit to 10
+      
+      console.log('[Live] Current service:', nextService.title, 'on', nextService.date);
+    } catch (err) {
+      console.error('[Live] Error refreshing schedule:', err);
+      // Fallback to recurring-only
+      const nextService = getNextUpcomingService();
+      setCurrentService(nextService);
+      const allServices = getServicesForWeeks(4);
+      setUpcomingServices(allServices.filter(s => s.id !== nextService.id));
+    }
   }, []);
 
   // Load admin-created schedules + live stream config on mount
