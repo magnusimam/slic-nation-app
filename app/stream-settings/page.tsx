@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { MobileNavBar } from '@/components/layout/MobileNavBar';
 import { Button } from '@/components/ui/button';
@@ -78,6 +80,10 @@ import {
 } from '@/lib/supabase/services';
 
 export default function StreamSettingsPage() {
+  const router = useRouter();
+  const { user, profile, loading } = useAuth();
+
+  // ALL useState hooks must come before any conditional returns
   const [platform, setPlatform] = useState<StreamPlatform>('youtube');
   const [youtubeInput, setYoutubeInput] = useState('');
   const [youtubeChannelId, setYoutubeChannelId] = useState('');
@@ -121,6 +127,13 @@ export default function StreamSettingsPage() {
   const [recurringDuration, setRecurringDuration] = useState(2);
   const [recurringSpeaker, setRecurringSpeaker] = useState('Apst Emmanuel Etim');
   const [recurringThumbnail, setRecurringThumbnail] = useState('');
+
+  // Admin guard - redirect non-admins
+  useEffect(() => {
+    if (!loading && (!user || profile?.role !== 'admin')) {
+      router.push('/');
+    }
+  }, [user, profile, loading, router]);
 
   // Load saved stream config + schedules
   useEffect(() => {
@@ -169,6 +182,23 @@ export default function StreamSettingsPage() {
     }
     loadAll();
   }, []);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-foreground/70">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not admin
+  if (!user || profile?.role !== 'admin') {
+    return null;
+  }
 
   const resetForm = () => {
     setFormTitle('');

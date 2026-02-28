@@ -151,15 +151,30 @@ export async function updateVideo(id: string, updates: Partial<Video> & {
   const supabase = createClient()
   const row = videoToRow(updates)
   
+  console.log('[Supabase] Updating video:', id)
+  console.log('[Supabase] Update data:', row)
+  
+  // Don't use .single() as it can hang if RLS blocks
   const { data, error } = await supabase
     .from('videos')
     .update(row)
     .eq('id', id)
     .select()
-    .single()
 
-  if (error) throw error
-  return data ? rowToVideo(data) : null
+  console.log('[Supabase] Update response - data:', data, 'error:', error)
+
+  if (error) {
+    console.error('[Supabase] Update error:', error)
+    throw error
+  }
+  
+  if (!data || data.length === 0) {
+    console.error('[Supabase] Update returned no rows - RLS may be blocking')
+    throw new Error('Update failed - no rows returned. Check RLS policies.')
+  }
+  
+  console.log('[Supabase] Update success:', data[0]?.id)
+  return data[0] ? rowToVideo(data[0]) : null
 }
 
 /** Delete a video */

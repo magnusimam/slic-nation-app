@@ -141,15 +141,30 @@ export async function updateBook(id: string, updates: Partial<Book> & {
   const supabase = createClient()
   const row = bookToRow(updates)
 
+  console.log('[Supabase] Updating book:', id)
+  console.log('[Supabase] Update data:', row)
+
+  // Don't use .single() as it can hang if RLS blocks
   const { data, error } = await supabase
     .from('books')
     .update(row)
     .eq('id', id)
     .select()
-    .single()
 
-  if (error) throw error
-  return data ? rowToBook(data) : null
+  console.log('[Supabase] Update response - data:', data, 'error:', error)
+
+  if (error) {
+    console.error('[Supabase] Update error:', error)
+    throw error
+  }
+  
+  if (!data || data.length === 0) {
+    console.error('[Supabase] Update returned no rows - RLS may be blocking')
+    throw new Error('Update failed - no rows returned. Check RLS policies.')
+  }
+  
+  console.log('[Supabase] Update success:', data[0]?.id)
+  return data[0] ? rowToBook(data[0]) : null
 }
 
 export async function deleteBook(id: string) {

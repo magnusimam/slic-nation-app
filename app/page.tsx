@@ -16,18 +16,19 @@ import { Button } from '@/components/ui/button';
 export default function Home() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   
-  // Load videos from Supabase
+  // Load videos from Supabase only
   const [videos, setVideos] = useState<(Video & { isFeatured?: boolean })[]>([]);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     async function loadVideos() {
       try {
         const data = await getSupabaseVideos();
         setVideos(data);
-      } catch {
-        // Fallback: try localStorage contentManager
-        const { getVideos } = await import('@/lib/contentManager');
-        setVideos(getVideos());
+      } catch (error) {
+        console.error('[Supabase] Failed to load videos:', error);
+      } finally {
+        setLoading(false);
       }
     }
     loadVideos();

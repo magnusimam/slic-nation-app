@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Header } from '@/components/layout/Header';
 import { MobileNavBar } from '@/components/layout/MobileNavBar';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,7 @@ import {
   Image as ImageIcon,
   Link2,
   Settings,
+  Loader2,
 } from 'lucide-react';
 import {
   getVideos,
@@ -68,7 +71,10 @@ type ContentTab = 'videos' | 'books';
 type ViewMode = 'grid' | 'list';
 
 export default function ContentManagementPage() {
-  // Tab state
+  const router = useRouter();
+  const { user, profile, loading } = useAuth();
+
+  // Tab state - ALL hooks must be before any conditional returns
   const [activeTab, setActiveTab] = useState<ContentTab>('videos');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   
@@ -81,6 +87,8 @@ export default function ContentManagementPage() {
   const [videos, setVideos] = useState<ManagedVideo[]>([]);
   const [showVideoForm, setShowVideoForm] = useState(false);
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   // Video form fields
   const [videoTitle, setVideoTitle] = useState('');
@@ -111,21 +119,46 @@ export default function ContentManagementPage() {
   const [bookYear, setBookYear] = useState(new Date().getFullYear());
   const [bookIsFeatured, setBookIsFeatured] = useState(false);
   
-  // Load content on mount
+  // Load content on mount - Supabase only
   const loadContent = async () => {
     try {
       const [v, b] = await Promise.all([getSupabaseVideos(), getSupabaseBooks()]);
       setVideos(v as ManagedVideo[]);
       setBooks(b as ManagedBook[]);
-    } catch {
-      setVideos(getVideos());
-      setBooks(getBooks());
+      console.log('[Content] Loaded from Supabase:', v.length, 'videos,', b.length, 'books');
+    } catch (error) {
+      console.error('[Content] Failed to load from Supabase:', error);
+      setSaveMessage({ type: 'error', text: `Failed to load content: ${error instanceof Error ? error.message : 'Connection error'}` });
     }
   };
 
   useEffect(() => {
     loadContent();
   }, []);
+
+  // Admin guard - redirect non-admins
+  useEffect(() => {
+    if (!loading && (!user || profile?.role !== 'admin')) {
+      router.push('/');
+    }
+  }, [user, profile, loading, router]);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-foreground/70">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not admin
+  if (!user || profile?.role !== 'admin') {
+    return null;
+  }
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // VIDEO HANDLERS
@@ -150,52 +183,56 @@ export default function ContentManagementPage() {
   const handleAddVideo = async () => {
     if (!videoTitle) return;
     
+    console.log('[handleAddVideo] Starting...');
+    setSaving(true);
+    setSaveMessage(null);
+    
     const thumbnail = videoThumbnail || 
       (videoYoutubeId ? `https://img.youtube.com/vi/${videoYoutubeId}/maxresdefault.jpg` : 
       'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800&h=450&fit=crop');
     
+    const videoData = {
+      title: videoTitle,
+      description: videoDescription,
+      speaker: videoSpeaker,
+      thumbnail,
+      youtubeId: videoYoutubeId,
+      videoUrl,
+      duration: videoDuration,
+      category: videoCategory,
+      series: videoSeries,
+      date: videoDate,
+      isFeatured: videoIsFeatured,
+    };
+    
+    console.log('[handleAddVideo] Video data:', videoData);
+    
     try {
       if (editingVideoId) {
-        await updateSupabaseVideo(editingVideoId, {
-          title: videoTitle,
-          description: videoDescription,
-          speaker: videoSpeaker,
-          thumbnail,
-          youtubeId: videoYoutubeId,
-          videoUrl,
-          duration: videoDuration,
-          category: videoCategory,
-          series: videoSeries,
-          date: videoDate,
-          isFeatured: videoIsFeatured,
-        });
+        console.log('[handleAddVideo] Updating video:', editingVideoId);
+        await updateSupabaseVideo(editingVideoId, videoData);
+        console.log('[handleAddVideo] Update complete!');
+        setSaveMessage({ type: 'success', text: 'Video updated successfully!' });
       } else {
-        await addSupabaseVideo({
-          title: videoTitle,
-          description: videoDescription,
-          speaker: videoSpeaker,
-          thumbnail,
-          youtubeId: videoYoutubeId,
-          videoUrl,
-          duration: videoDuration,
-          category: videoCategory,
-          series: videoSeries,
-          date: videoDate,
-          isFeatured: videoIsFeatured,
-          views: 0,
-        });
+        console.log('[handleAddVideo] Adding new video');
+        await addSupabaseVideo({ ...videoData, views: 0 });
+        console.log('[handleAddVideo] Add complete!');
+        setSaveMessage({ type: 'success', text: 'Video added successfully!' });
       }
-    } catch {
-      // Fallback to localStorage
-      if (editingVideoId) {
-        updateVideo(editingVideoId, { title: videoTitle, description: videoDescription, speaker: videoSpeaker, thumbnail, youtubeId: videoYoutubeId, videoUrl, duration: videoDuration, category: videoCategory, series: videoSeries, date: videoDate, isFeatured: videoIsFeatured });
-      } else {
-        addVideo({ title: videoTitle, description: videoDescription, speaker: videoSpeaker, thumbnail, youtubeId: videoYoutubeId, videoUrl, duration: videoDuration, category: videoCategory, series: videoSeries, date: videoDate, isFeatured: videoIsFeatured, views: 0 });
-      }
+      console.log('[handleAddVideo] Reloading content...');
+      await loadContent();
+      console.log('[handleAddVideo] Content reloaded, resetting form...');
+      resetVideoForm();
+      console.log('[handleAddVideo] Done!');
+    } catch (error) {
+      console.error('[handleAddVideo] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setSaveMessage({ type: 'error', text: `Failed to save: ${errorMessage}` });
+    } finally {
+      console.log('[handleAddVideo] Finally block - stopping save state');
+      setSaving(false);
+      setTimeout(() => setSaveMessage(null), 5000);
     }
-    
-    await loadContent();
-    resetVideoForm();
   };
   
   const handleEditVideo = (video: ManagedVideo) => {
@@ -218,20 +255,22 @@ export default function ContentManagementPage() {
     if (confirm('Are you sure you want to delete this video?')) {
       try {
         await deleteSupabaseVideo(id);
-      } catch {
-        deleteVideo(id);
+        await loadContent();
+      } catch (error) {
+        console.error('[Supabase] Delete error:', error);
+        setSaveMessage({ type: 'error', text: `Failed to delete: ${error instanceof Error ? error.message : String(error)}` });
       }
-      await loadContent();
     }
   };
   
   const handleToggleVideoFeatured = async (video: ManagedVideo) => {
     try {
       await updateSupabaseVideo(video.id, { isFeatured: !video.isFeatured });
-    } catch {
-      updateVideo(video.id, { isFeatured: !video.isFeatured });
+      await loadContent();
+    } catch (error) {
+      console.error('[Supabase] Toggle featured error:', error);
+      setSaveMessage({ type: 'error', text: `Failed to update: ${error instanceof Error ? error.message : String(error)}` });
     }
-    await loadContent();
   };
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -255,45 +294,45 @@ export default function ContentManagementPage() {
   const handleAddBook = async () => {
     if (!bookTitle) return;
     
+    setSaving(true);
+    setSaveMessage(null);
+    
     const cover = bookCover || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=600&fit=crop';
+    
+    const bookData = {
+      title: bookTitle,
+      description: bookDescription,
+      author: bookAuthor,
+      cover,
+      downloadUrl: bookDownloadUrl,
+      category: bookCategory,
+      pages: bookPages,
+      year: bookYear,
+      isFeatured: bookIsFeatured,
+    };
     
     try {
       if (editingBookId) {
-        await updateSupabaseBook(editingBookId, {
-          title: bookTitle,
-          description: bookDescription,
-          author: bookAuthor,
-          cover,
-          downloadUrl: bookDownloadUrl,
-          category: bookCategory,
-          pages: bookPages,
-          year: bookYear,
-          isFeatured: bookIsFeatured,
-        });
+        console.log('[Supabase] Updating book:', editingBookId);
+        await updateSupabaseBook(editingBookId, bookData);
+        console.log('[Supabase] Book updated successfully');
+        setSaveMessage({ type: 'success', text: 'Book updated successfully!' });
       } else {
-        await addSupabaseBook({
-          title: bookTitle,
-          description: bookDescription,
-          author: bookAuthor,
-          cover,
-          downloadUrl: bookDownloadUrl,
-          category: bookCategory,
-          pages: bookPages,
-          year: bookYear,
-          isFeatured: bookIsFeatured,
-          downloads: 0,
-        });
+        console.log('[Supabase] Adding new book');
+        await addSupabaseBook({ ...bookData, downloads: 0 });
+        console.log('[Supabase] Book added successfully');
+        setSaveMessage({ type: 'success', text: 'Book added successfully!' });
       }
-    } catch {
-      if (editingBookId) {
-        updateBook(editingBookId, { title: bookTitle, description: bookDescription, author: bookAuthor, cover, downloadUrl: bookDownloadUrl, category: bookCategory, pages: bookPages, year: bookYear, isFeatured: bookIsFeatured });
-      } else {
-        addBook({ title: bookTitle, description: bookDescription, author: bookAuthor, cover, downloadUrl: bookDownloadUrl, category: bookCategory, pages: bookPages, year: bookYear, isFeatured: bookIsFeatured, downloads: 0 });
-      }
+      await loadContent();
+      resetBookForm();
+    } catch (error) {
+      console.error('[Supabase] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setSaveMessage({ type: 'error', text: `Failed to save: ${errorMessage}` });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveMessage(null), 5000);
     }
-    
-    await loadContent();
-    resetBookForm();
   };
   
   const handleEditBook = (book: ManagedBook) => {
@@ -314,20 +353,22 @@ export default function ContentManagementPage() {
     if (confirm('Are you sure you want to delete this book?')) {
       try {
         await deleteSupabaseBook(id);
-      } catch {
-        deleteBook(id);
+        await loadContent();
+      } catch (error) {
+        console.error('[Supabase] Delete error:', error);
+        setSaveMessage({ type: 'error', text: `Failed to delete: ${error instanceof Error ? error.message : String(error)}` });
       }
-      await loadContent();
     }
   };
   
   const handleToggleBookFeatured = async (book: ManagedBook) => {
     try {
       await updateSupabaseBook(book.id, { isFeatured: !book.isFeatured });
-    } catch {
-      updateBook(book.id, { isFeatured: !book.isFeatured });
+      await loadContent();
+    } catch (error) {
+      console.error('[Supabase] Toggle featured error:', error);
+      setSaveMessage({ type: 'error', text: `Failed to update: ${error instanceof Error ? error.message : String(error)}` });
     }
-    await loadContent();
   };
   
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -385,9 +426,19 @@ export default function ContentManagementPage() {
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
               <Settings className="w-5 h-5 text-primary" />
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">Content Management</h1>
-              <p className="text-sm text-foreground/70">Add and manage videos and books</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Content Management</h1>
+                <Badge 
+                  variant="outline" 
+                  className="text-xs border-green-500 text-green-500"
+                >
+                  ● Supabase
+                </Badge>
+              </div>
+              <p className="text-sm text-foreground/70">
+                Manage videos and books stored in cloud database
+              </p>
             </div>
           </div>
         </div>
@@ -606,12 +657,18 @@ export default function ContentManagementPage() {
                   </div>
                 </div>
                 
+                {saveMessage && (
+                  <div className={`p-3 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                    {saveMessage.text}
+                  </div>
+                )}
+                
                 <div className="flex gap-2 pt-2">
-                  <Button onClick={handleAddVideo} className="gap-2">
-                    <Check className="w-4 h-4" />
-                    {editingVideoId ? 'Update Video' : 'Add Video'}
+                  <Button onClick={handleAddVideo} disabled={saving} className="gap-2">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {saving ? 'Saving...' : (editingVideoId ? 'Update Video' : 'Add Video')}
                   </Button>
-                  <Button variant="outline" onClick={resetVideoForm}>Cancel</Button>
+                  <Button variant="outline" onClick={resetVideoForm} disabled={saving}>Cancel</Button>
                 </div>
               </div>
             )}
@@ -851,12 +908,18 @@ export default function ContentManagementPage() {
                   </div>
                 </div>
                 
+                {saveMessage && (
+                  <div className={`p-3 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                    {saveMessage.text}
+                  </div>
+                )}
+                
                 <div className="flex gap-2 pt-2">
-                  <Button onClick={handleAddBook} className="gap-2 bg-secondary hover:bg-secondary/90">
-                    <Check className="w-4 h-4" />
-                    {editingBookId ? 'Update Book' : 'Add Book'}
+                  <Button onClick={handleAddBook} disabled={saving} className="gap-2 bg-secondary hover:bg-secondary/90">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {saving ? 'Saving...' : (editingBookId ? 'Update Book' : 'Add Book')}
                   </Button>
-                  <Button variant="outline" onClick={resetBookForm}>Cancel</Button>
+                  <Button variant="outline" onClick={resetBookForm} disabled={saving}>Cancel</Button>
                 </div>
               </div>
             )}

@@ -19,7 +19,7 @@ export default function BooksPage() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   
-  // Load books from Supabase
+  // Load books from Supabase only
   const [books, setBooks] = useState<(Book & { downloadUrl?: string | null; sortOrder?: number; createdAt?: string; updatedAt?: string })[]>([]);
   
   useEffect(() => {
@@ -27,9 +27,8 @@ export default function BooksPage() {
       try {
         const data = await getSupabaseBooks();
         setBooks(data);
-      } catch {
-        const { getBooks } = await import('@/lib/contentManager');
-        setBooks(getBooks());
+      } catch (error) {
+        console.error('[Supabase] Failed to load books:', error);
       }
     }
     loadBooks();

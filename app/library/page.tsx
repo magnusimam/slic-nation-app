@@ -27,7 +27,7 @@ export default function LibraryPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   
-  // Load videos from Supabase
+  // Load videos from Supabase only
   const [videos, setVideos] = useState<Video[]>([]);
   
   useEffect(() => {
@@ -35,9 +35,8 @@ export default function LibraryPage() {
       try {
         const data = await getSupabaseVideos();
         setVideos(data);
-      } catch {
-        const { getVideos } = await import('@/lib/contentManager');
-        setVideos(getVideos());
+      } catch (error) {
+        console.error('[Supabase] Failed to load videos:', error);
       }
     }
     loadVideos();
