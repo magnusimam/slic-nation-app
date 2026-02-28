@@ -14,14 +14,16 @@ export function createClient() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
-          // Increase lock timeout and add retry logic
-          lockAcquireTimeout: 10000,
-          // Prevent issues with React Strict Mode double-mounting
+          // Use unique storage key and disable URL detection to prevent lock conflicts
+          storageKey: 'slic-nations-auth',
+          detectSessionInUrl: false,
           persistSession: true,
           autoRefreshToken: true,
+          flowType: 'pkce',
         }
       }
     )
   }
   return globalForSupabase.supabaseClient
 }
+

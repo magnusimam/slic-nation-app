@@ -1,7 +1,7 @@
-// Supabase client setup for Next.js
-import { createClient } from '@supabase/supabase-js';
+// Re-export the singleton Supabase client
+// This file exists for backward compatibility
+export { createClient } from './supabase/client'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || '';
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// For code that expects a direct supabase instance
+import { createClient } from './supabase/client'
+export const supabase = createClient()
