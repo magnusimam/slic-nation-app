@@ -400,15 +400,18 @@ export default function StreamSettingsPage() {
       chat: getChatConfig(),
     };
     try {
+      console.log('[StreamSettings] Saving config to Supabase:', config);
       await saveSupabaseStreamConfig({
         platform,
-        youtube_video_id: config.youtubeVideoId,
-        youtube_live_channel_id: config.youtubeLiveChannelId,
-        facebook_video_url: config.facebookVideoUrl,
-        is_live: isLive,
-        chat: getChatConfig() as any,
+        youtubeVideoId: config.youtubeVideoId,
+        youtubeLiveChannelId: config.youtubeLiveChannelId,
+        facebookVideoUrl: config.facebookVideoUrl,
+        isLive: isLive,
+        chat: getChatConfig(),
       });
-    } catch {
+      console.log('[StreamSettings] Config saved successfully');
+    } catch (err) {
+      console.error('[StreamSettings] Supabase save failed:', err);
       saveStreamConfig(config);
     }
     setSaved(true);
@@ -428,15 +431,18 @@ export default function StreamSettingsPage() {
       chat: getChatConfig(),
     };
     try {
+      console.log('[StreamSettings] Toggling live to:', newLive);
       await saveSupabaseStreamConfig({
         platform,
-        youtube_video_id: config.youtubeVideoId,
-        youtube_live_channel_id: config.youtubeLiveChannelId,
-        facebook_video_url: config.facebookVideoUrl,
-        is_live: newLive,
-        chat: getChatConfig() as any,
+        youtubeVideoId: config.youtubeVideoId,
+        youtubeLiveChannelId: config.youtubeLiveChannelId,
+        facebookVideoUrl: config.facebookVideoUrl,
+        isLive: newLive,
+        chat: getChatConfig(),
       });
-    } catch {
+      console.log('[StreamSettings] Live toggle saved');
+    } catch (err) {
+      console.error('[StreamSettings] Toggle save failed:', err);
       saveStreamConfig(config);
     }
   };

@@ -60,11 +60,20 @@ export async function saveStreamConfig(config: Partial<StreamConfig>) {
   if (config.fallbackThumbnail !== undefined) row.fallback_thumbnail = config.fallbackThumbnail || null
   if (config.chat !== undefined) row.chat_config = config.chat
 
-  const { error } = await supabase
-    .from('stream_config')
-    .upsert(row)
+  console.log('[StreamConfig] Saving to Supabase:', row)
 
-  if (error) throw error
+  const { data, error } = await supabase
+    .from('stream_config')
+    .upsert(row, { onConflict: 'id' })
+    .select()
+
+  if (error) {
+    console.error('[StreamConfig] Save error:', error)
+    throw error
+  }
+  
+  console.log('[StreamConfig] Saved successfully:', data)
+  return data
 }
 
 /** Toggle live status */
